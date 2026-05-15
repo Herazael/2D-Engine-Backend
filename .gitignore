@@ -1,0 +1,70 @@
+# Ignore build artifacts
+/build/
+
+# Ignore CMake files
+CMakeFiles/
+CMakeCache.txt
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Ignore Visual Studio files
+*.vcxproj
+*.vcxproj.*
+*.sln
+*.user
+*.ncb
+*.suo
+*.pdb
+*.idb
+*.ipch
+*.obj
+*.tlog
+*.log
+*.lastbuildstate
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# Ignore temporary files
+*.tmp
+*.temp
+*.log
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Ignore vcpkg build artifacts
+vcpkg_installed/
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+
+# Ignore executables and libraries
+*.exe
+*.dll
+*.lib
+*.so
+*.dylib
+*.a
+*.out
+*.app
+*.o
+*.lo
+*.la
+*.obj
+*.gch
+*.pch
+
+# Ignore other IDE-specific files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Ignore Lua bytecode
+*.luac
