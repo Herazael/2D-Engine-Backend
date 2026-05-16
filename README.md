@@ -34,8 +34,10 @@ Implemented so far:
       - SdlWindowSurface.h
   - src/
     - core/
-      - Application/: Application implementation
-      - Renderer/: Renderer implementations
+      - Application/:
+        - Application.cpp
+      - Renderer/:
+        - OpenGLRenderer.cpp
     - platform/: Platform implementations
       - SdlWindowSurface.cpp
 - sandbox/: test executable that boots the engine
