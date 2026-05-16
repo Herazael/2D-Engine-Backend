@@ -40,16 +40,13 @@ void engine::Application::cleanUp(){
 
 static SDL_PropertiesID createWindowProps(){
     SDL_PropertiesID props = SDL_CreateProperties();
-    if(props == 0) {
-        SDL_Log("Unable to create properties: %s", SDL_GetError());
-        return 0;
-    }
 
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, kWindowTitle);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, kWindowWidth);
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, kWindowHeight);
+    
     return props;
 }
 
