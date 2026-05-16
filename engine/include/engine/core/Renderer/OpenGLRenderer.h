@@ -20,15 +20,16 @@ namespace engine
         void endFrame() override;
         void resize(int width, int height) override;
         void shutdown() override;
-        void drawLine() override;
-        bool compileShader() override;
+        void drawTestGeometry(const float* vertices, int arraySize, int vertexCount, PrimitiveType primitiveType) override;
 
     private:
+        bool compileShader();
         SDL_Window* m_window = nullptr;
         SDL_GLContext m_context = nullptr;
         GLuint m_program = 0;
         GLuint m_vao = 0;
         GLuint m_vbo = 0;
         bool m_initialized = false;
+        
     };
 }

@@ -1,4 +1,5 @@
 #include <engine/core/Renderer/OpenGLRenderer.h>
+#include <engine/core/Renderer/Types.h>
 #include <engine/platform/IWindowSurface.h>
 
 #include <SDL3/SDL.h>
@@ -32,15 +33,6 @@ constexpr const char* kFragmentShaderSource = R"glsl(
     }
 )glsl";
 }
-
-struct Vertex {
-    float x, y, z;
-};
-
-Vertex lineVertices[2] = {
-    { -0.5f, -0.5f, 0.0f },  // start point
-    {  0.5f,  0.5f, 0.0f }   // end point
-};
 
 engine::OpenGLRenderer::~OpenGLRenderer()
 {
@@ -115,7 +107,6 @@ bool engine::OpenGLRenderer::init(engine::IWindowSurface& surface)
     glGenBuffers(1, &m_vbo);
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(lineVertices), lineVertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -149,7 +140,7 @@ void engine::OpenGLRenderer::endFrame()
     SDL_GL_SwapWindow(m_window);
 }
 
-void engine::OpenGLRenderer::drawLine()
+void engine::OpenGLRenderer::drawTestGeometry(const float* vertices, int arraySize, int vertexCount, PrimitiveType primitiveType)
 {
     if(!m_initialized || !m_program){
         SDL_Log("Renderer or Program not initialized.");
@@ -157,7 +148,10 @@ void engine::OpenGLRenderer::drawLine()
     }
     glUseProgram(m_program);
     glBindVertexArray(m_vao);
-    glDrawArrays(GL_LINES, 0, 2);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferData(GL_ARRAY_BUFFER, arraySize, vertices, GL_STATIC_DRAW);
+    glDrawArrays(toGLenum(primitiveType), 0, vertexCount);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     glUseProgram(0);
 }
@@ -239,8 +233,6 @@ bool engine::OpenGLRenderer::compileShader(){
         } else {
             SDL_Log("Shader compile failed with empty info log.");
         }
-        return false;
-    
     	glDeleteProgram(program);
     	glDeleteShader(vertexShader);
     	glDeleteShader(fragmentShader);

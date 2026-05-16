@@ -1,15 +1,24 @@
 #include <engine/core/Application/Application.h>
 #include <engine/core/Renderer/IRenderer.h>
+#include <engine/core/Renderer/Types.h>
 #include <engine/platform/SdlWindowSurface.h>
 #include <SDL3/SDL.h>
 
 namespace {
-constexpr const char* kWindowTitle = "NeoLab2D";
-constexpr int kWindowWidth = 1280;
-constexpr int kWindowHeight = 720;
-constexpr int kWindowMinWidth = 800;
-constexpr int kWindowMinHeight = 600;
-} // namespace
+    constexpr const char* kWindowTitle = "NeoLab2D";
+    constexpr int kWindowWidth = 1280;
+    constexpr int kWindowHeight = 720;
+    constexpr int kWindowMinWidth = 800;
+    constexpr int kWindowMinHeight = 600;
+
+    // Test geometry
+    float triangleVertices[] = {
+        -0.5f, -0.5f, 0.0f,
+         0.5f, -0.5f, 0.0f,
+         0.0f,  0.5f, 0.0f
+    };
+}
+
 
 engine::Application::Application(std::unique_ptr<engine::IRenderer> renderer)
     : m_renderer(std::move(renderer))
@@ -64,7 +73,7 @@ void engine::Application::run() {
         }
 
         m_renderer->beginFrame();
-        m_renderer->drawLine();
+        m_renderer->drawTestGeometry(triangleVertices, sizeof(triangleVertices), 3, engine::PrimitiveType::Triangles);
         m_renderer->endFrame();
     } 
     return;

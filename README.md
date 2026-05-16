@@ -8,8 +8,9 @@ Implemented so far:
 - SDL3-based application initialization and window creation
 - Application lifecycle management with run loop and event polling
 - OpenGL renderer with context management and GLAD2 loading
-- Shader compile/link pipeline for a basic GL program
-- Line draw call wired into the frame loop
+- Flexible primitive rendering system (Points, Lines, Triangles, etc.)
+- Vertex Array Object (VAO) and Vertex Buffer Object (VBO) management
+- Shader compile/link pipeline for test geometry
 - Interface-based renderer abstraction (IRenderer, IWindowSurface)
 - Sandbox executable linked against engine static library
 - CMake + vcpkg-based dependency setup
@@ -30,9 +31,10 @@ Implemented so far:
     - core/
       - Application/: Application lifecycle management
         - Application.h
-      - Renderer/: Renderer abstractions
+      - Renderer/: Renderer abstractions and types
         - IRenderer.h
         - OpenGLRenderer.h
+        - Types.h: Primitive types and utilities
     - platform/: Platform-specific implementations
       - IWindowSurface.h
       - SdlWindowSurface.h
@@ -44,6 +46,7 @@ Implemented so far:
         - OpenGLRenderer.cpp
     - platform/: Platform implementations
       - SdlWindowSurface.cpp
+  - third_party/glad2/: GLAD2 OpenGL loader
 - sandbox/: test executable that boots the engine
   - CMakeLists.txt: Sandbox Bootstrap build entry
   - src/main.cpp: Sandbox Bootstrap
@@ -85,8 +88,8 @@ Recommended build order:
 
 1. ✓ Window + fixed timestep loop
 2. ✓ OpenGL renderer setup
-3. Primitive and sprite rendering (in progress: basic line draw path)
-4. Sprite batching
+3. ✓ Primitive rendering foundation (VAO/VBO, flexible geometry types)
+4. Sprite rendering and batching
 5. Input action mapping
 6. ECS integration (EnTT)
 7. Asset manager (load/cache/lifetime)
@@ -128,14 +131,15 @@ classDiagram
         + endFrame()* void
         + resize(width: int, height: int)* void
         + shutdown()* void
-        + drawLine()* void
-        + compileShader()* void
+        + drawTestGeometry(vertices: float*, arraySize: int, vertexCount: int, primitiveType: PrimitiveType)* void
     }
 
     class OpenGLRenderer {
         - m_window: SDL_Window*
         - m_context: SDL_GLContext
         - m_program: GLuint
+        - m_vao: GLuint
+        - m_vbo: GLuint
         - m_initialized: bool
         + ~OpenGLRenderer() override
         + configureContextAttributes() override void
@@ -144,8 +148,19 @@ classDiagram
         + endFrame() override void
         + resize(width: int, height: int) override void
         + shutdown() override void
-        + drawLine() override void
-        + compileShader() override void
+        + drawTestGeometry(vertices: float*, arraySize: int, vertexCount: int, primitiveType: PrimitiveType) override void
+        - compileShader() bool
+    }
+
+    class PrimitiveType {
+        <<enumeration>>
+        Points
+        Lines
+        LineStrip
+        LineLoop
+        Triangles
+        TriangleStrip
+        TriangleFan
     }
 
     class IWindowSurface {
@@ -166,6 +181,7 @@ classDiagram
     OpenGLRenderer --|> IRenderer : implements
     IWindowSurface <|-- SdlWindowSurface : implements
     OpenGLRenderer --> IWindowSurface : uses
+    OpenGLRenderer --> PrimitiveType : uses
 ```
 
 ## Notes

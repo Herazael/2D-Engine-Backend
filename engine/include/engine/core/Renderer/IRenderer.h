@@ -1,5 +1,7 @@
 #pragma once
 
+#include <engine/core/Renderer/Types.h>
+
 namespace engine
 {
     class IWindowSurface;
@@ -15,7 +17,6 @@ namespace engine
         virtual void endFrame() = 0;
         virtual void resize(int width, int height) = 0;
         virtual void shutdown() = 0;
-        virtual void drawLine() = 0;
-        virtual bool compileShader() = 0;
+        virtual void drawTestGeometry(const float* vertices, int arraySize, int vertexCount, PrimitiveType primitiveType) = 0;
     };
 }
