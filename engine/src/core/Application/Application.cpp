@@ -1,21 +1,40 @@
 #include <engine/core/Application/Application.h>
+#include <engine/core/Renderer/IRenderer.h>
+#include <engine/platform/SdlWindowSurface.h>
 #include <SDL3/SDL.h>
-#include <glad/gl.h>
+
+namespace {
+constexpr const char* kWindowTitle = "NeoLab2D";
+constexpr int kWindowWidth = 1280;
+constexpr int kWindowHeight = 720;
+constexpr int kWindowMinWidth = 800;
+constexpr int kWindowMinHeight = 600;
+} // namespace
+
+engine::Application::Application(std::unique_ptr<engine::IRenderer> renderer)
+    : m_renderer(std::move(renderer))
+{
+}
 
 engine::Application::~Application(){
     cleanUp();
 }
 
-void engine::Application::cleanUp(){ 
-    if(m_context){
-        SDL_GL_DestroyContext(m_context);
-        m_context = nullptr;
+void engine::Application::cleanUp(){
+    if (m_renderer) {
+        m_renderer->shutdown();
     }
+
     if(m_window) {
         SDL_DestroyWindow(m_window);
         m_window = nullptr;
     }
-    SDL_Quit();
+
+    if (m_sdlInitialized) {
+        SDL_Quit();
+        m_sdlInitialized = false;
+    }
+
     m_running = false;
 }
 
@@ -25,29 +44,13 @@ static SDL_PropertiesID createWindowProps(){
         SDL_Log("Unable to create properties: %s", SDL_GetError());
         return 0;
     }
-    SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "NeoLab2D");
+
+    SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, kWindowTitle);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, 1280);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, 720);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, kWindowWidth);
+    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, kWindowHeight);
     return props;
-}
-
-static SDL_GLContext createOpenGLContext(SDL_Window* window) {
-    SDL_GLContext glContext = SDL_GL_CreateContext(window);
-    if (glContext == nullptr) {
-        SDL_Log("Failed to create OpenGL context: %s", SDL_GetError());
-        return nullptr;
-    }
-    return glContext;
-}
-
-static void setGLAttributes(){
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 }
 
 void engine::Application::run() {
@@ -57,65 +60,56 @@ void engine::Application::run() {
             if (event.type == SDL_EVENT_QUIT) {
                 m_running = false;
             }
+
+            if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                m_renderer->resize(event.window.data1, event.window.data2);
+            }
         }
+
+        m_renderer->beginFrame();
+        m_renderer->endFrame();
     } 
     return;
 }
 
 void engine::Application::init() {
+    if (!m_renderer) {
+        SDL_Log("Application init failed: renderer dependency is null");
+        m_running = false;
+        return;
+    }
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         m_running = false;
         return;
-    }    
+    }
+    m_sdlInitialized = true;
 
-    setGLAttributes();
+    m_renderer->configureContextAttributes();
 
-    SDL_PropertiesID windowProps;
-    if(!(windowProps = createWindowProps())){
+    SDL_PropertiesID windowProps = createWindowProps();
+    if(!windowProps){
         SDL_Log("Failed to create window properties: %s", SDL_GetError());
         cleanUp();
         return;
-    };
-
-    if(!(m_window = SDL_CreateWindowWithProperties(windowProps))){
-        SDL_Log("Failed to create window: %s", SDL_GetError());
-        SDL_DestroyProperties(windowProps);
-        cleanUp();
-        return;
     }
-    SDL_SetWindowMinimumSize(m_window, 800, 600);
+
+    m_window = SDL_CreateWindowWithProperties(windowProps);
     SDL_DestroyProperties(windowProps);
 
-    if(!(m_context = createOpenGLContext(m_window))){
-        SDL_Log("Failed to create context: %s", SDL_GetError());
+    if(!m_window){
+        SDL_Log("Failed to create window: %s", SDL_GetError());
         cleanUp();
         return;
     }
+    SDL_SetWindowMinimumSize(m_window, kWindowMinWidth, kWindowMinHeight);
 
-    if(!SDL_GL_MakeCurrent(m_window, m_context)){
-        SDL_Log("Failed to make context current: %s", SDL_GetError());
+    engine::SdlWindowSurface surface(m_window);
+    if (!m_renderer->init(surface)) {
         cleanUp();
         return;
     }
-
-    const int glVersion = gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
-    if (glVersion == 0) {
-        SDL_Log("GLAD2 init failed: could not load OpenGL functions");
-        cleanUp();
-        return;
-    }
-    SDL_Log("GLAD2 init OK (OpenGL version code: %d)", glVersion);
-
-    const GLubyte* vendor = glGetString(GL_VENDOR);
-    const GLubyte* renderer = glGetString(GL_RENDERER);
-    const GLubyte* version = glGetString(GL_VERSION);
-    const GLubyte* glslVer = glGetString(GL_SHADING_LANGUAGE_VERSION);
-
-    SDL_Log("OpenGL Vendor: %s", vendor ? (const char*)vendor : "unknown");
-    SDL_Log("OpenGL Renderer: %s", renderer ? (const char*)renderer : "unknown");
-    SDL_Log("OpenGL Version: %s", version ? (const char*)version : "unknown");
-    SDL_Log("GLSL Version: %s", glslVer ? (const char*)glslVer : "unknown");
 
     m_running = true;
 }

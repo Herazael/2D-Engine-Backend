@@ -5,7 +5,8 @@ find_package(OpenGL REQUIRED)
 
 target_sources(engine PRIVATE
     src/core/Application/Application.cpp
-    src/core/Renderer/Renderer.cpp
+    src/core/Renderer/OpenGLRenderer.cpp
+    src/platform/SdlWindowSurface.cpp
     third_party/glad2/src/gl.c
 )
 
