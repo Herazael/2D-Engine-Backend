@@ -5,10 +5,11 @@ A lightweight 2D engine backend in modern C++, currently focused on windowing, a
 ## Current Status
 
 Implemented so far:
-- SDL3-based application initialization
-- Window creation via SDL window properties
-- Basic run loop with event polling
-- Sandbox executable linked against a static engine library
+- SDL3-based application initialization and window creation
+- Application lifecycle management with run loop and event polling
+- OpenGL renderer with context management
+- Interface-based renderer abstraction (IRenderer, IWindowSurface)
+- Sandbox executable linked against engine static library
 - CMake + vcpkg-based dependency setup
 
 ## Tech Stack
@@ -21,8 +22,22 @@ Implemented so far:
 ## Project Layout
 
 - engine/: core engine static library
-  - include/engine/core/Application.h
-  - src/core/Application.cpp
+  - include/engine/
+    - core/
+      - Application/: Application lifecycle management
+        - Application.h
+      - Renderer/: Renderer abstractions
+        - IRenderer.h
+        - OpenGLRenderer.h
+    - platform/: Platform-specific implementations
+      - IWindowSurface.h
+      - SdlWindowSurface.h
+  - src/
+    - core/
+      - Application/: Application implementation
+      - Renderer/: Renderer implementations
+    - platform/: Platform implementations
+      - SdlWindowSurface.cpp
 - sandbox/: test executable that boots the engine
   - src/main.cpp
 - CMakeLists.txt: root build entry
@@ -61,8 +76,8 @@ cmake --build --preset default
 
 Recommended build order:
 
-1. Window + fixed timestep loop
-2. OpenGL renderer setup
+1. ✓ Window + fixed timestep loop
+2. ✓ OpenGL renderer setup
 3. Primitive and sprite rendering
 4. Sprite batching
 5. Input action mapping
@@ -78,6 +93,68 @@ Recommended build order:
 15. Editor UI (Dear ImGui)
 16. Save/load pipeline
 17. Debug and profiling tools
+
+## Architecture
+
+### Class Diagram
+
+```mermaid
+classDiagram
+    class Application {
+        - m_window: SDL_Window*
+        - m_renderer: unique_ptr~IRenderer~
+        - m_running: bool
+        - m_sdlInitialized: bool
+        + Application(renderer: unique_ptr~IRenderer~)
+        + ~Application()
+        + init() void
+        + run() void
+        - cleanUp() void
+    }
+
+    class IRenderer {
+        <<interface>>
+        + ~IRenderer()* virtual
+        + configureContextAttributes()* void
+        + init(surface: IWindowSurface&)* bool
+        + beginFrame()* void
+        + endFrame()* void
+        + resize(width: int, height: int)* void
+        + shutdown()* void
+    }
+
+    class OpenGLRenderer {
+        - m_window: SDL_Window*
+        - m_context: SDL_GLContext
+        - m_initialized: bool
+        + ~OpenGLRenderer() override
+        + configureContextAttributes() override void
+        + init(surface: IWindowSurface&) override bool
+        + beginFrame() override void
+        + endFrame() override void
+        + resize(width: int, height: int) override void
+        + shutdown() override void
+    }
+
+    class IWindowSurface {
+        <<interface>>
+        + ~IWindowSurface()* virtual
+        + getWindowHandle()* SDL_Window*
+        + getSize(width: int&, height: int&)* void
+    }
+
+    class SdlWindowSurface {
+        - m_window: SDL_Window*
+        + SdlWindowSurface(window: SDL_Window*)
+        + getWindowHandle() override SDL_Window*
+        + getSize(width: int&, height: int&) override void
+    }
+
+    Application --> IRenderer : uses
+    OpenGLRenderer --|> IRenderer : implements
+    IWindowSurface <|-- SdlWindowSurface : implements
+    OpenGLRenderer --> IWindowSurface : uses
+```
 
 ## Notes
 
