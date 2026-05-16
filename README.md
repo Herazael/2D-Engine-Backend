@@ -22,6 +22,7 @@ Implemented so far:
 ## Project Layout
 
 - engine/: core engine static library
+  - CMakeLists.txt: Engine build entry
   - include/engine/
     - core/
       - Application/: Application lifecycle management
@@ -41,7 +42,8 @@ Implemented so far:
     - platform/: Platform implementations
       - SdlWindowSurface.cpp
 - sandbox/: test executable that boots the engine
-  - src/main.cpp
+  - CMakeLists.txt: Sandbox Bootstrap build entry
+  - src/main.cpp: Sandbox Bootstrap
 - CMakeLists.txt: root build entry
 - CMakePresets.json: default configure/build preset
 - vcpkg.json: dependency manifest
