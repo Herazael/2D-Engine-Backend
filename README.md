@@ -1,13 +1,15 @@
 # NeoLab2D Engine Backend
 
-A lightweight 2D engine backend in modern C++, currently focused on windowing, app lifecycle, and core architecture.
+A lightweight 2D engine backend in modern C++, currently focused on SDL windowing, application lifecycle, and an OpenGL rendering foundation.
 
 ## Current Status
 
 Implemented so far:
 - SDL3-based application initialization and window creation
 - Application lifecycle management with run loop and event polling
-- OpenGL renderer with context management
+- OpenGL renderer with context management and GLAD2 loading
+- Shader compile/link pipeline for a basic GL program
+- Line draw call wired into the frame loop
 - Interface-based renderer abstraction (IRenderer, IWindowSurface)
 - Sandbox executable linked against engine static library
 - CMake + vcpkg-based dependency setup
@@ -18,6 +20,7 @@ Implemented so far:
 - Build system: CMake + Ninja
 - Package manager: vcpkg (manifest mode)
 - Windowing/input: SDL3
+- Graphics: OpenGL 3.3 core + GLAD2
 
 ## Project Layout
 
@@ -82,7 +85,7 @@ Recommended build order:
 
 1. ✓ Window + fixed timestep loop
 2. ✓ OpenGL renderer setup
-3. Primitive and sprite rendering
+3. Primitive and sprite rendering (in progress: basic line draw path)
 4. Sprite batching
 5. Input action mapping
 6. ECS integration (EnTT)
@@ -125,11 +128,14 @@ classDiagram
         + endFrame()* void
         + resize(width: int, height: int)* void
         + shutdown()* void
+        + drawLine()* void
+        + compileShader()* void
     }
 
     class OpenGLRenderer {
         - m_window: SDL_Window*
         - m_context: SDL_GLContext
+        - m_program: GLuint
         - m_initialized: bool
         + ~OpenGLRenderer() override
         + configureContextAttributes() override void
@@ -138,6 +144,8 @@ classDiagram
         + endFrame() override void
         + resize(width: int, height: int) override void
         + shutdown() override void
+        + drawLine() override void
+        + compileShader() override void
     }
 
     class IWindowSurface {
