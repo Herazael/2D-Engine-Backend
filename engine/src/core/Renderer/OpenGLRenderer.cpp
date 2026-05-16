@@ -7,9 +7,9 @@
 namespace {
 constexpr int kGLMajorVersion = 3;
 constexpr int kGLMinorVersion = 3;
-constexpr float kClearColorR = 0.06f;
-constexpr float kClearColorG = 0.06f;
-constexpr float kClearColorB = 0.08f;
+constexpr float kClearColorR = 0.16f;
+constexpr float kClearColorG = 0.46f;
+constexpr float kClearColorB = 0.68f;
 constexpr float kClearColorA = 1.0f;
 }
 
