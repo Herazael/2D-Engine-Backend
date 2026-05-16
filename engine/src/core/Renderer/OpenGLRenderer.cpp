@@ -33,6 +33,15 @@ constexpr const char* kFragmentShaderSource = R"glsl(
 )glsl";
 }
 
+struct Vertex {
+    float x, y, z;
+};
+
+Vertex lineVertices[2] = {
+    { -0.5f, -0.5f, 0.0f },  // start point
+    {  0.5f,  0.5f, 0.0f }   // end point
+};
+
 engine::OpenGLRenderer::~OpenGLRenderer()
 {
     shutdown();
@@ -97,7 +106,20 @@ bool engine::OpenGLRenderer::init(engine::IWindowSurface& surface)
     SDL_Log("OpenGL Version: %s", version ? (const char*)version : "unknown");
     SDL_Log("GLSL Version: %s", glslVer ? (const char*)glslVer : "unknown");
 
-    compileShader();
+    if(!compileShader()){
+        shutdown();
+        return false;
+    }
+
+    glGenVertexArrays(1, &m_vao);
+    glGenBuffers(1, &m_vbo);
+    glBindVertexArray(m_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(lineVertices), lineVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     int width = 0;
     int height = 0;
@@ -129,43 +151,71 @@ void engine::OpenGLRenderer::endFrame()
 
 void engine::OpenGLRenderer::drawLine()
 {
+    if(!m_initialized || !m_program){
+        SDL_Log("Renderer or Program not initialized.");
+        return;
+    }
+    glUseProgram(m_program);
+    glBindVertexArray(m_vao);
     glDrawArrays(GL_LINES, 0, 2);
+    glBindVertexArray(0);
+    glUseProgram(0);
 }
 
-static GLuint compileHelper(const char* const *shaderSource, GLenum shaderType){
+static GLuint compileHelper(const char* shaderSource, GLenum shaderType){
     GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, shaderSource, 0);
+    if (shader == 0) {
+        SDL_Log("glCreateShader failed for type: %u", static_cast<unsigned>(shaderType));
+        return 0;
+    }
+    glShaderSource(shader, 1, &shaderSource, 0);
     glCompileShader(shader);
     return shader;
 }
 
-static bool checkShader(GLuint *shader){
+static bool checkShader(GLuint shader){
     GLint isCompiled = 0;
-    glGetShaderiv(*shader, GL_COMPILE_STATUS, &isCompiled);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &isCompiled);
     if (isCompiled == GL_FALSE)
     {
-    	GLint maxLength = 0;
-    	glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &maxLength);
+    	GLint logLength = 0;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
 
-    	std::vector<GLchar> infoLog(maxLength);
-    	glGetShaderInfoLog(*shader, maxLength, &maxLength, &infoLog[0]);
-    	return false;
+        if (logLength > 1) {
+            std::vector<GLchar> infoLog(static_cast<size_t>(logLength), '\0');
+            glGetShaderInfoLog(shader, logLength, nullptr, infoLog.data());
+            SDL_Log("Shader compile failed: %s", infoLog.data());
+        } else {
+            SDL_Log("Shader compile failed with empty info log.");
+        }
+        return false;
     }
     return true;
 }
 
-void engine::OpenGLRenderer::compileShader(){
-    GLuint vertexShader = compileHelper(&kVertexShaderSource, GL_VERTEX_SHADER);
-    if(!checkShader(&vertexShader)){
+bool engine::OpenGLRenderer::compileShader(){
+    GLuint vertexShader = compileHelper(kVertexShaderSource, GL_VERTEX_SHADER);
+
+    if (vertexShader == 0) {
+        return false;
+    }
+
+    if(!checkShader(vertexShader)){
         glDeleteShader(vertexShader);
-        return;
+        return false;
     }
     
-    GLuint fragmentShader = compileHelper(&kFragmentShaderSource, GL_FRAGMENT_SHADER);
-    if(!checkShader(&fragmentShader)){
+    GLuint fragmentShader = compileHelper(kFragmentShaderSource, GL_FRAGMENT_SHADER);
+
+    if (fragmentShader == 0) {
+        glDeleteShader(vertexShader);
+        return false;
+    }
+
+    if(!checkShader(fragmentShader)){
         glDeleteShader(fragmentShader);
         glDeleteShader(vertexShader);
-        return;
+        return false;
     }
 
     GLuint program = glCreateProgram();
@@ -176,24 +226,33 @@ void engine::OpenGLRenderer::compileShader(){
     glLinkProgram(program);
 
     GLint isLinked = 0;
-    glGetProgramiv(program, GL_LINK_STATUS, (int *)&isLinked);
+    glGetProgramiv(program, GL_LINK_STATUS, &isLinked);
     if (isLinked == GL_FALSE)
     {
-    	GLint maxLength = 0;
-    	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+    	GLint logLength = 0;
+    	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
 
-    	std::vector<GLchar> infoLog(maxLength);
-    	glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
+        if (logLength > 1) {
+            std::vector<GLchar> infoLog(static_cast<size_t>(logLength), '\0');
+            glGetProgramInfoLog(program, logLength, nullptr, infoLog.data());
+            SDL_Log("Shader compile failed: %s", infoLog.data());
+        } else {
+            SDL_Log("Shader compile failed with empty info log.");
+        }
+        return false;
     
     	glDeleteProgram(program);
     	glDeleteShader(vertexShader);
     	glDeleteShader(fragmentShader);
-    	return;
+    	return false;
     }
     m_program = program;
     glDetachShader(program, vertexShader);
     glDetachShader(program, fragmentShader);
-}
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+    return true;
+}  
 
 void engine::OpenGLRenderer::resize(int width, int height)
 {
@@ -213,7 +272,14 @@ void engine::OpenGLRenderer::shutdown()
         SDL_GL_DestroyContext(m_context);
         m_context = nullptr;
     }
-
+    if (m_vao){
+        glDeleteVertexArrays(1, &m_vao);
+    } 
+    if (m_vbo){
+        glDeleteBuffers(1, &m_vbo);
+    } 
+    m_vao = 0; 
+    m_vbo = 0;
     m_window = nullptr;
     m_initialized = false;
 }

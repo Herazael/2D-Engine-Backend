@@ -11,10 +11,11 @@ target_sources(engine PRIVATE
 )
 
 target_include_directories(engine 
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad2/include
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad2/include
 )
 
 target_link_libraries(engine PUBLIC SDL3::SDL3 OpenGL::GL)
