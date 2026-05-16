@@ -18,10 +18,13 @@ namespace engine
         void endFrame() override;
         void resize(int width, int height) override;
         void shutdown() override;
+        void drawLine() override;
+        void compileShader() override;
 
     private:
         SDL_Window* m_window = nullptr;
         SDL_GLContext m_context = nullptr;
+        GLuint m_program = 0;
         bool m_initialized = false;
     };
 }

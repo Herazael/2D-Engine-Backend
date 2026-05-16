@@ -64,6 +64,7 @@ void engine::Application::run() {
         }
 
         m_renderer->beginFrame();
+        m_renderer->drawLine();
         m_renderer->endFrame();
     } 
     return;

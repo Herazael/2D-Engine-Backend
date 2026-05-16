@@ -15,5 +15,7 @@ namespace engine
         virtual void endFrame() = 0;
         virtual void resize(int width, int height) = 0;
         virtual void shutdown() = 0;
+        virtual void drawLine() = 0;
+        virtual void compileShader() = 0;
     };
 }

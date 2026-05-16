@@ -3,6 +3,7 @@
 
 #include <SDL3/SDL.h>
 #include <glad/gl.h>
+#include <vector>
 
 namespace {
 constexpr int kGLMajorVersion = 3;
@@ -11,6 +12,25 @@ constexpr float kClearColorR = 0.16f;
 constexpr float kClearColorG = 0.46f;
 constexpr float kClearColorB = 0.68f;
 constexpr float kClearColorA = 1.0f;
+}
+
+namespace {
+// ... existing constants ...
+constexpr const char* kVertexShaderSource = R"glsl(
+    #version 330 core
+    layout(location = 0) in vec3 position;
+    void main() {
+        gl_Position = vec4(position, 1.0);
+    }
+)glsl";
+
+constexpr const char* kFragmentShaderSource = R"glsl(
+    #version 330 core
+    out vec4 FragColor;
+    void main() {
+        FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+)glsl";
 }
 
 engine::OpenGLRenderer::~OpenGLRenderer()
@@ -77,6 +97,8 @@ bool engine::OpenGLRenderer::init(engine::IWindowSurface& surface)
     SDL_Log("OpenGL Version: %s", version ? (const char*)version : "unknown");
     SDL_Log("GLSL Version: %s", glslVer ? (const char*)glslVer : "unknown");
 
+    compileShader();
+
     int width = 0;
     int height = 0;
     surface.getSize(width, height);
@@ -103,6 +125,74 @@ void engine::OpenGLRenderer::endFrame()
     }
 
     SDL_GL_SwapWindow(m_window);
+}
+
+void engine::OpenGLRenderer::drawLine()
+{
+    glDrawArrays(GL_LINES, 0, 2);
+}
+
+static GLuint compileHelper(const char* const *shaderSource, GLenum shaderType){
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, shaderSource, 0);
+    glCompileShader(shader);
+    return shader;
+}
+
+static bool checkShader(GLuint *shader){
+    GLint isCompiled = 0;
+    glGetShaderiv(*shader, GL_COMPILE_STATUS, &isCompiled);
+    if (isCompiled == GL_FALSE)
+    {
+    	GLint maxLength = 0;
+    	glGetShaderiv(*shader, GL_INFO_LOG_LENGTH, &maxLength);
+
+    	std::vector<GLchar> infoLog(maxLength);
+    	glGetShaderInfoLog(*shader, maxLength, &maxLength, &infoLog[0]);
+    	return false;
+    }
+    return true;
+}
+
+void engine::OpenGLRenderer::compileShader(){
+    GLuint vertexShader = compileHelper(&kVertexShaderSource, GL_VERTEX_SHADER);
+    if(!checkShader(&vertexShader)){
+        glDeleteShader(vertexShader);
+        return;
+    }
+    
+    GLuint fragmentShader = compileHelper(&kFragmentShaderSource, GL_FRAGMENT_SHADER);
+    if(!checkShader(&fragmentShader)){
+        glDeleteShader(fragmentShader);
+        glDeleteShader(vertexShader);
+        return;
+    }
+
+    GLuint program = glCreateProgram();
+
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+
+    glLinkProgram(program);
+
+    GLint isLinked = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, (int *)&isLinked);
+    if (isLinked == GL_FALSE)
+    {
+    	GLint maxLength = 0;
+    	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &maxLength);
+
+    	std::vector<GLchar> infoLog(maxLength);
+    	glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
+    
+    	glDeleteProgram(program);
+    	glDeleteShader(vertexShader);
+    	glDeleteShader(fragmentShader);
+    	return;
+    }
+    m_program = program;
+    glDetachShader(program, vertexShader);
+    glDetachShader(program, fragmentShader);
 }
 
 void engine::OpenGLRenderer::resize(int width, int height)
