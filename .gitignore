@@ -1,6 +1,9 @@
 # Ignore build artifacts
 /build/
 
+# Ignore personal progress file
+progress.txt
+
 # Ignore CMake files
 CMakeFiles/
 CMakeCache.txt
