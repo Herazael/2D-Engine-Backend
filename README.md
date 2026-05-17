@@ -139,47 +139,50 @@ flowchart LR
 
 ## Class UML
 
+### Engine Library Classes
+
 ```mermaid
 classDiagram
   class Application {
-    - m_renderer: unique_ptr~IRenderer~
-    - m_appHost: unique_ptr~IAppHost~
-    - m_scene: unique_ptr~IScene~
+    - m_renderer: std::unique_ptr~IRenderer~
+    - m_appHost: std::unique_ptr~IAppHost~
+    - m_scene: std::unique_ptr~IScene~
     - m_sceneInitialized: bool
     - m_running: bool
-    + Application(renderer, appHost, scene)
-    + init() void
-    + run() void
-    - cleanUp() void
+    + Application(std::unique_ptr~IRenderer~ renderer, std::unique_ptr~IAppHost~ appHost, std::unique_ptr~IScene~ scene)
+    + ~Application()
+    + init()
+    + run()
+    - cleanUp()
   }
 
   class IRenderer {
     <<interface>>
-    + ~IRenderer() virtual
+    + ~IRenderer()
     + init(surface: RenderSurface) bool
-    + beginFrame() void
-    + endFrame() void
-    + resize(width: int, height: int) void
-    + shutdown() void
-    + drawSprite(sprite: SpriteData) void
+    + beginFrame()
+    + endFrame()
+    + resize(width: int, height: int)
+    + shutdown()
+    + drawSprite(sprite: SpriteData)
     + loadTexture(path: const char*) TextureHandle
   }
 
   class IAppHost {
     <<interface>>
-    + ~IAppHost() virtual
+    + ~IAppHost()
     + initialize() bool
     + pollEvent(outEvent: AppEvent&) bool
     + getRenderSurface() RenderSurface
-    + shutdown() void
+    + shutdown()
   }
 
   class IScene {
     <<interface>>
-    + ~IScene() virtual
+    + ~IScene()
     + initialize(renderer: IRenderer&) bool
-    + render(renderer: IRenderer&) void
-    + shutdown(renderer: IRenderer&) void
+    + render(renderer: IRenderer&)
+    + shutdown(renderer: IRenderer&)
   }
 
   class RenderSurface {
@@ -217,28 +220,51 @@ classDiagram
     + tintA: float
   }
 
+  class TextureHandle {
+    <<type alias>>
+    std::uint32_t
+  }
+
   class SpriteRenderer {
+    + ~SpriteRenderer() override
     + init(surface: RenderSurface) bool
-    + beginFrame() void
-    + endFrame() void
-    + resize(width: int, height: int) void
-    + shutdown() void
-    + drawSprite(sprite: SpriteData) void
+    + beginFrame()
+    + endFrame()
+    + resize(width: int, height: int)
+    + shutdown()
+    + drawSprite(sprite: SpriteData)
     + loadTexture(path: const char*) TextureHandle
+    - compileShader() bool
+    - initSpriteResources() bool
+    - m_window: SDL_Window*
+    - m_context: SDL_GLContext
+    - m_program: GLuint
+    - m_vao: GLuint
+    - m_vbo: GLuint
+    - m_ebo: GLuint
+    - m_spriteProgram: GLuint
+    - m_spriteVao: GLuint
+    - m_spriteVbo: GLuint
+    - m_spriteEbo: GLuint
+    - m_ownedTextures: std::vector~GLuint~
+    - m_viewportWidth: int
+    - m_viewportHeight: int
+    - m_initialized: bool
   }
 
   class SdlAppHost {
     + initialize() bool
     + pollEvent(outEvent: AppEvent&) bool
     + getRenderSurface() RenderSurface
-    + shutdown() void
+    + shutdown()
+    - m_window: SDL_Window*
+    - m_sdlInitialized: bool
   }
 
-  class DemoScene {
-    + initialize(renderer: IRenderer&) bool
-    + render(renderer: IRenderer&) void
-    + shutdown(renderer: IRenderer&) void
-  }
+  note for IRenderer "C++ signature: bool init(const RenderSurface& surface)"
+  note for IAppHost "C++ signature: RenderSurface getRenderSurface() const"
+  note for SdlAppHost "C++ signature: RenderSurface getRenderSurface() const"
+  note for SpriteRenderer "C++ signature: bool init(const RenderSurface& surface)"
 
   Application --> IRenderer : uses
   Application --> IAppHost : uses
@@ -247,12 +273,107 @@ classDiagram
   IAppHost --> AppEvent : outputs
   IRenderer --> RenderSurface : consumes
   IRenderer --> SpriteData : draws
+  SpriteData --> TextureHandle : uses
 
   SpriteRenderer --|> IRenderer : implements
   SdlAppHost --|> IAppHost : implements
-  DemoScene --|> IScene : implements
+```
 
+### Sandbox Composition Classes
+
+```mermaid
+classDiagram
+  class DemoScene {
+    + initialize(renderer: IRenderer&) bool
+    + render(renderer: IRenderer&)
+    + shutdown(renderer: IRenderer&)
+    - m_sprite: SpriteData
+  }
+
+  class IScene {
+    <<interface>>
+    + ~IScene()
+    + initialize(renderer: IRenderer&) bool
+    + render(renderer: IRenderer&)
+    + shutdown(renderer: IRenderer&)
+  }
+
+  class IRenderer {
+    <<interface>>
+    + ~IRenderer()
+    + init(surface: RenderSurface) bool
+    + beginFrame()
+    + endFrame()
+    + resize(width: int, height: int)
+    + shutdown()
+    + drawSprite(sprite: SpriteData)
+    + loadTexture(path: const char*) TextureHandle
+  }
+
+  class IAppHost {
+    <<interface>>
+    + ~IAppHost()
+    + initialize() bool
+    + pollEvent(outEvent: AppEvent&) bool
+    + getRenderSurface() RenderSurface
+    + shutdown()
+  }
+
+  class RenderSurface {
+    <<struct>>
+    + nativeWindowHandle: void*
+    + width: int
+    + height: int
+  }
+
+  class AppEvent {
+    <<struct>>
+    + type: AppEventType
+    + width: int
+    + height: int
+  }
+
+  class AppEventType {
+    <<enumeration>>
+    None
+    Quit
+    WindowResized
+  }
+
+  class SpriteData {
+    <<struct>>
+    + texture: TextureHandle
+    + x: float
+    + y: float
+    + width: float
+    + height: float
+    + rotation: float
+    + tintR: float
+    + tintG: float
+    + tintB: float
+    + tintA: float
+  }
+
+  class TextureHandle {
+    <<type alias>>
+    std::uint32_t
+  }
+
+  class Application {
+    + Application(std::unique_ptr~IRenderer~ renderer, std::unique_ptr~IAppHost~ appHost, std::unique_ptr~IScene~ scene)
+    + ~Application()
+    + init()
+    + run()
+  }
+
+  note for IRenderer "C++ signature: bool init(const RenderSurface& surface)"
+  note for IAppHost "C++ signature: RenderSurface getRenderSurface() const"
+
+  DemoScene --|> IScene : implements
   DemoScene --> IRenderer : uses
+  Application --> IScene : consumes
+  Application --> IRenderer : consumes
+  Application --> IAppHost : consumes
 ```
 
 ## Notes
