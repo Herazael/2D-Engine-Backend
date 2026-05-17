@@ -108,274 +108,90 @@ cmake --build --preset default
 - Rendering backend is an adapter: SpriteRenderer is a platform implementation of IRenderer, not a core policy type.
 - Composition happens at the edge: sandbox/main.cpp wires concrete adapters into Application.
 - Data crossing boundaries is backend-agnostic: RenderSurface and AppEvent are plain core structs.
-- Dependency direction is strictly inward: platform depends on core; core has no SDL/OpenGL includes.
-
-## Dependency Direction
-
-```mermaid
-flowchart LR
-  Sandbox[Sandbox Composition Root] -->|creates| SdlAppHost[SdlAppHost Adapter]
-  Sandbox -->|creates| SpriteRenderer[SpriteRenderer Adapter]
-  Sandbox -->|creates| DemoScene[DemoScene]
-
-  SdlAppHost -->|implements| IAppHost[IAppHost Port]
-  SpriteRenderer -->|implements| IRenderer[IRenderer Port]
-  DemoScene -->|implements| IScene[IScene Port]
-
-  Application[Application Use Case] --> IAppHost
-  Application --> IRenderer
-  Application --> IScene
-
-  SdlAppHost -.depends on.-> SDL[SDL3]
-  SpriteRenderer -.depends on.-> SDL
-  SpriteRenderer -.depends on.-> OpenGL[OpenGL + GLAD2]
-
-  IAppHost --> Core[Core Layer]
-  IRenderer --> Core
-  IScene --> Core
-  Application --> Core
-```
 
 
-## Class UML
 
-### Engine Library Classes
-
-```mermaid
-classDiagram
-  class Application {
-    - m_renderer: std::unique_ptr~IRenderer~
-    - m_appHost: std::unique_ptr~IAppHost~
-    - m_scene: std::unique_ptr~IScene~
-    - m_sceneInitialized: bool
-    - m_running: bool
-    + Application(std::unique_ptr~IRenderer~ renderer, std::unique_ptr~IAppHost~ appHost, std::unique_ptr~IScene~ scene)
-    + ~Application()
-    + init()
-    + run()
-    - cleanUp()
-  }
-
-  class IRenderer {
-    <<interface>>
-    + ~IRenderer()
-    + init(surface: RenderSurface) bool
-    + beginFrame()
-    + endFrame()
-    + resize(width: int, height: int)
-    + shutdown()
-    + drawSprite(sprite: SpriteData)
-    + loadTexture(path: const char*) TextureHandle
-  }
-
-  class IAppHost {
-    <<interface>>
-    + ~IAppHost()
-    + initialize() bool
-    + pollEvent(outEvent: AppEvent&) bool
-    + getRenderSurface() RenderSurface
-    + shutdown()
-  }
-
-  class IScene {
-    <<interface>>
-    + ~IScene()
-    + initialize(renderer: IRenderer&) bool
-    + render(renderer: IRenderer&)
-    + shutdown(renderer: IRenderer&)
-  }
-
-  class RenderSurface {
-    <<struct>>
-    + nativeWindowHandle: void*
-    + width: int
-    + height: int
-  }
-
-  class AppEvent {
-    <<struct>>
-    + type: AppEventType
-    + width: int
-    + height: int
-  }
-
-  class AppEventType {
-    <<enumeration>>
-    None
-    Quit
-    WindowResized
-  }
-
-  class SpriteData {
-    <<struct>>
-    + texture: TextureHandle
-    + x: float
-    + y: float
-    + width: float
-    + height: float
-    + rotation: float
-    + tintR: float
-    + tintG: float
-    + tintB: float
-    + tintA: float
-  }
-
-  class TextureHandle {
-    <<type alias>>
-    std::uint32_t
-  }
-
-  class SpriteRenderer {
-    + ~SpriteRenderer() override
-    + init(surface: RenderSurface) bool
-    + beginFrame()
-    + endFrame()
-    + resize(width: int, height: int)
-    + shutdown()
-    + drawSprite(sprite: SpriteData)
-    + loadTexture(path: const char*) TextureHandle
-    - compileShader() bool
-    - initSpriteResources() bool
-    - m_window: SDL_Window*
-    - m_context: SDL_GLContext
-    - m_program: GLuint
-    - m_vao: GLuint
-    - m_vbo: GLuint
-    - m_ebo: GLuint
-    - m_spriteProgram: GLuint
-    - m_spriteVao: GLuint
-    - m_spriteVbo: GLuint
-    - m_spriteEbo: GLuint
-    - m_ownedTextures: std::vector~GLuint~
-    - m_viewportWidth: int
-    - m_viewportHeight: int
-    - m_initialized: bool
-  }
-
-  class SdlAppHost {
-    + initialize() bool
-    + pollEvent(outEvent: AppEvent&) bool
-    + getRenderSurface() RenderSurface
-    + shutdown()
-    - m_window: SDL_Window*
-    - m_sdlInitialized: bool
-  }
-
-  note for IRenderer "C++ signature: bool init(const RenderSurface& surface)"
-  note for IAppHost "C++ signature: RenderSurface getRenderSurface() const"
-  note for SdlAppHost "C++ signature: RenderSurface getRenderSurface() const"
-  note for SpriteRenderer "C++ signature: bool init(const RenderSurface& surface)"
-
-  Application --> IRenderer : uses
-  Application --> IAppHost : uses
-  Application --> IScene : uses
-  IAppHost --> RenderSurface : returns
-  IAppHost --> AppEvent : outputs
-  IRenderer --> RenderSurface : consumes
-  IRenderer --> SpriteData : draws
-  SpriteData --> TextureHandle : uses
-
-  SpriteRenderer --|> IRenderer : implements
-  SdlAppHost --|> IAppHost : implements
-```
-
-### Sandbox Composition Classes
-
-```mermaid
-classDiagram
-  class DemoScene {
-    + initialize(renderer: IRenderer&) bool
-    + render(renderer: IRenderer&)
-    + shutdown(renderer: IRenderer&)
-    - m_sprite: SpriteData
-  }
-
-  class IScene {
-    <<interface>>
-    + ~IScene()
-    + initialize(renderer: IRenderer&) bool
-    + render(renderer: IRenderer&)
-    + shutdown(renderer: IRenderer&)
-  }
-
-  class IRenderer {
-    <<interface>>
-    + ~IRenderer()
-    + init(surface: RenderSurface) bool
-    + beginFrame()
-    + endFrame()
-    + resize(width: int, height: int)
-    + shutdown()
-    + drawSprite(sprite: SpriteData)
-    + loadTexture(path: const char*) TextureHandle
-  }
-
-  class IAppHost {
-    <<interface>>
-    + ~IAppHost()
-    + initialize() bool
-    + pollEvent(outEvent: AppEvent&) bool
-    + getRenderSurface() RenderSurface
-    + shutdown()
-  }
-
-  class RenderSurface {
-    <<struct>>
-    + nativeWindowHandle: void*
-    + width: int
-    + height: int
-  }
-
-  class AppEvent {
-    <<struct>>
-    + type: AppEventType
-    + width: int
-    + height: int
-  }
-
-  class AppEventType {
-    <<enumeration>>
-    None
-    Quit
-    WindowResized
-  }
-
-  class SpriteData {
-    <<struct>>
-    + texture: TextureHandle
-    + x: float
-    + y: float
-    + width: float
-    + height: float
-    + rotation: float
-    + tintR: float
-    + tintG: float
-    + tintB: float
-    + tintA: float
-  }
-
-  class TextureHandle {
-    <<type alias>>
-    std::uint32_t
-  }
-
-  class Application {
-    + Application(std::unique_ptr~IRenderer~ renderer, std::unique_ptr~IAppHost~ appHost, std::unique_ptr~IScene~ scene)
-    + ~Application()
-    + init()
-    + run()
-  }
-
-  note for IRenderer "C++ signature: bool init(const RenderSurface& surface)"
-  note for IAppHost "C++ signature: RenderSurface getRenderSurface() const"
-
-  DemoScene --|> IScene : implements
-  DemoScene --> IRenderer : uses
-  Application --> IScene : consumes
-  Application --> IRenderer : consumes
-  Application --> IAppHost : consumes
-```
-
+Dependency direction is strictly inward: platform depends on core; core has no SDL/OpenGL includes.
 ## Notes
 
-- Build outputs and CMake-generated files should not be committed.
+## Dependency Diagram
+
+```mermaid
+flowchart TD
+  subgraph Core
+    IRenderer
+    IAppHost
+    IScene
+    Application
+  end
+  subgraph Platform
+    SpriteRenderer
+    SdlAppHost
+  end
+  subgraph Sandbox
+    Main["main.cpp"]
+  end
+  Main --> Application
+  Application --> IRenderer
+  Application --> IAppHost
+  Application --> IScene
+  SpriteRenderer --|implements|> IRenderer
+  SdlAppHost --|implements|> IAppHost
+  SpriteRenderer --> SdlAppHost
+```
+
+## Core Class UML
+
+```mermaid
+classDiagram
+  class Application {
+    - m_renderer: unique_ptr<IRenderer>
+    - m_appHost: unique_ptr<IAppHost>
+    - m_scene: unique_ptr<IScene>
+    + init()
+    + run()
+  }
+  class IRenderer {
+    <<interface>>
+    + init(surface)
+    + beginFrame()
+    + endFrame()
+    + resize(width, height)
+    + shutdown()
+    + drawSprite(sprite)
+    + loadTexture(path)
+  }
+  class IAppHost {
+    <<interface>>
+    + initialize()
+    + pollEvent(outEvent)
+    + getRenderSurface()
+    + shutdown()
+  }
+  class IScene {
+    <<interface>>
+    + initialize(renderer)
+    + render(renderer)
+    + shutdown(renderer)
+  }
+  class SpriteRenderer {
+    + init(surface)
+    + beginFrame()
+    + endFrame()
+    + resize(width, height)
+    + shutdown()
+    + drawSprite(sprite)
+    + loadTexture(path)
+  }
+  class SdlAppHost {
+    + initialize()
+    + pollEvent(outEvent)
+    + getRenderSurface()
+    + shutdown()
+  }
+  Application --> IRenderer
+  Application --> IAppHost
+  Application --> IScene
+  SpriteRenderer --|> IRenderer
+  SdlAppHost --|> IAppHost
+```
