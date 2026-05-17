@@ -19,7 +19,6 @@ namespace {
     };
 }
 
-
 engine::Application::Application(std::unique_ptr<engine::IRenderer> renderer)
     : m_renderer(std::move(renderer))
 {
@@ -72,8 +71,17 @@ void engine::Application::run() {
             }
         }
 
+
+        engine::GeometryData testGeom;
+        testGeom.vertices = triangleVertices;
+        testGeom.vertexByteSize = sizeof(triangleVertices);
+        testGeom.vertexCount = _countof(triangleVertices) / 3;
+        testGeom.primitive = engine::PrimitiveType::Triangles;
+
+
+
         m_renderer->beginFrame();
-        m_renderer->drawTestGeometry(triangleVertices, sizeof(triangleVertices), 3, engine::PrimitiveType::Triangles);
+        m_renderer->drawGeometry(testGeom);
         m_renderer->endFrame();
     } 
     return;

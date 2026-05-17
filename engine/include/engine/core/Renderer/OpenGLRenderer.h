@@ -20,7 +20,7 @@ namespace engine
         void endFrame() override;
         void resize(int width, int height) override;
         void shutdown() override;
-        void drawTestGeometry(const float* vertices, int arraySize, int vertexCount, PrimitiveType primitiveType) override;
+        void drawGeometry(GeometryData& geometry) override;
 
     private:
         bool compileShader();

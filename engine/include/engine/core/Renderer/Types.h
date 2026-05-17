@@ -13,6 +13,13 @@ namespace engine {
         TriangleFan
     };
 
+    struct GeometryData {
+        const float* vertices;
+        int vertexByteSize;
+        int vertexCount;
+        PrimitiveType primitive;
+    };
+
     inline GLenum toGLenum(PrimitiveType type) {
         switch (type) {
             case PrimitiveType::Points: return GL_POINTS;

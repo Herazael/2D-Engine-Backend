@@ -140,7 +140,7 @@ void engine::OpenGLRenderer::endFrame()
     SDL_GL_SwapWindow(m_window);
 }
 
-void engine::OpenGLRenderer::drawTestGeometry(const float* vertices, int arraySize, int vertexCount, PrimitiveType primitiveType)
+void engine::OpenGLRenderer::drawGeometry(GeometryData& geometry)
 {
     if(!m_initialized || !m_program){
         SDL_Log("Renderer or Program not initialized.");
@@ -149,8 +149,8 @@ void engine::OpenGLRenderer::drawTestGeometry(const float* vertices, int arraySi
     glUseProgram(m_program);
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, arraySize, vertices, GL_STATIC_DRAW);
-    glDrawArrays(toGLenum(primitiveType), 0, vertexCount);
+    glBufferData(GL_ARRAY_BUFFER, geometry.vertexByteSize, geometry.vertices, GL_STATIC_DRAW);
+    glDrawArrays(toGLenum(geometry.primitive), 0, geometry.vertexCount);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     glUseProgram(0);
