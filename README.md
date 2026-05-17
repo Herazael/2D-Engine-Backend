@@ -1,75 +1,68 @@
 # NeoLab2D Engine Backend
 
-A lightweight 2D engine backend in modern C++, currently focused on SDL windowing, application lifecycle, and an OpenGL rendering foundation.
+2D engine backend in modern C++ with explicit Clean Architecture boundaries:
 
-## Current Status
+- Core layer defines application and rendering ports.
+- Platform layer implements SDL3/OpenGL adapters.
+- Sandbox is the composition root that wires adapters into core use cases.
 
-Implemented so far:
-- SDL3-based application initialization and window creation
-- Application lifecycle management with run loop and event polling
-- OpenGL renderer with context management and GLAD2 loading
-- Flexible geometry rendering system (VAO, VBO, EBO)
-- Sprite rendering pipeline with texture support
-- Shader compile/link pipeline for dynamic geometry and sprites
-- Interface-based renderer abstraction (IRenderer, IWindowSurface)
-- Sandbox executable linked against engine static library
-- CMake + vcpkg-based dependency setup
+## Status
 
-## Tech Stack
+- Core app loop is framework-agnostic (no SDL types in core APIs).
+- Rendering contract is backend-agnostic via RenderSurface.
+- SDL lifecycle/event/window concerns are isolated in SdlAppHost.
+- OpenGL sprite rendering is isolated in platform SpriteRenderer.
 
-- Language: C++26
-- Build system: CMake + Ninja
-- Package manager: vcpkg (manifest mode)
-- Windowing/input: SDL3
-- Graphics: OpenGL 3.3 core + GLAD2
+## Tech
 
-## Project Layout
-
-- engine/: core engine static library
-  - CMakeLists.txt: Engine build entry
-  - include/engine/
-    - core/
-      - Application/: Application lifecycle management
-        - Application.h
-      - Renderer/: Renderer abstractions and types
-        - IRenderer.h
-        - OpenGLRenderer.h
-        - Types.h: Primitive types and utilities
-    - platform/: Platform-specific implementations
-      - IWindowSurface.h
-      - SdlWindowSurface.h
-  - src/
-    - core/
-      - Application/:
-        - Application.cpp
-      - Renderer/:
-        - OpenGLRenderer.cpp
-    - platform/: Platform implementations
-      - SdlWindowSurface.cpp
-  - third_party/glad2/: GLAD2 OpenGL loader
-- sandbox/: test executable that boots the engine
-  - CMakeLists.txt: Sandbox Bootstrap build entry
-  - src/main.cpp: Sandbox Bootstrap
-- CMakeLists.txt: root build entry
-- CMakePresets.json: default configure/build preset
-- vcpkg.json: dependency manifest
+- C++26
+- CMake + Ninja
+- vcpkg (manifest mode)
+- SDL3
+- OpenGL 3.3 core + GLAD2
 
 ## Prerequisites
 
-Install these tools:
+- Windows 10/11 (x64)
 - CMake 3.20+
-- Ninja
-- Clang (clang++)
-- vcpkg at C:/vcpkg
+- Ninja 1.10+
+- LLVM/Clang 17+ or MSVC 19.3x+
+- Visual Studio 2022 Build Tools with Desktop C++ workload and Windows SDK
+- vcpkg (manifest mode enabled)
 
-The default preset uses:
-- Generator: Ninja
-- Compiler: clang++
-- Toolchain: C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+Recommended install links:
+
+- CMake: https://cmake.org/download/
+- Ninja: https://github.com/ninja-build/ninja/releases
+- LLVM: https://releases.llvm.org/
+- Visual Studio Build Tools: https://visualstudio.microsoft.com/downloads/
+- vcpkg: https://github.com/microsoft/vcpkg
+
+## Layout
+
+- engine/include/engine/core
+  - Application
+    - Application.h
+    - AppEvent.h
+    - IAppHost.h
+    - IScene.h
+  - Renderer
+    - IRenderer.h
+    - RenderSurface.h
+    - Types.h
+- engine/include/engine/platform
+  - SdlAppHost.h
+  - SpriteRenderer.h
+- engine/src/core/Application
+  - Application.cpp
+- engine/src/platform
+  - SdlAppHost.cpp
+  - SpriteRenderer.cpp
+  - StbImageImpl.cpp
+- sandbox/src
+  - main.cpp
 
 ## Build
-
-From the repository root:
 
 ```powershell
 cmake --preset default
@@ -82,161 +75,186 @@ cmake --build --preset default
 .\build\sandbox\sandbox.exe
 ```
 
-## Development Roadmap
+## Milestone Checklist
 
-Recommended build order:
+- [x] Window + fixed timestep loop
+- [x] OpenGL renderer setup
+- [x] Primitive rendering foundation (VAO/VBO, flexible geometry types)
+- [ ] Sprite rendering and batching
+- [ ] Input action mapping
+- [ ] ECS integration (EnTT)
+- [ ] Asset manager (load/cache/lifetime)
+- [ ] Physics integration (Box2D)
+- [ ] Animation system
+- [ ] Camera system
+- [ ] Audio system (miniaudio)
+- [ ] Scene management
+- [ ] Tilemap support
+- [ ] Lua scripting (sol3)
+- [ ] Editor UI (Dear ImGui)
+- [ ] Save/load pipeline
+- [ ] Debug and profiling tools
 
-1. ✓ Window + fixed timestep loop
-2. ✓ OpenGL renderer setup
-3. ✓ Primitive rendering foundation (VAO/VBO, flexible geometry types)
-4. Sprite rendering and batching
-5. Input action mapping
-6. ECS integration (EnTT)
-7. Asset manager (load/cache/lifetime)
-8. Physics integration (Box2D)
-9. Animation system
-10. Camera system
-11. Audio system (miniaudio)
-12. Scene management
-13. Tilemap support
-14. Lua scripting (sol3)
-15. Editor UI (Dear ImGui)
-16. Save/load pipeline
-17. Debug and profiling tools
+## Layer Rules
 
-## Architecture
+- Core can depend only on core abstractions and data types.
+- Platform can depend on SDL/OpenGL and implement core interfaces.
+- Sandbox composes concrete platform adapters with core use cases.
 
-### Class Diagram
+## Architecture Decisions
+
+- Core ports are stable contracts: IRenderer, IAppHost, and IScene are defined in core so policies depend on interfaces, not frameworks.
+- Framework lifecycle is isolated: SDL initialization, window creation, and event polling live only in SdlAppHost.
+- Rendering backend is an adapter: SpriteRenderer is a platform implementation of IRenderer, not a core policy type.
+- Composition happens at the edge: sandbox/main.cpp wires concrete adapters into Application.
+- Data crossing boundaries is backend-agnostic: RenderSurface and AppEvent are plain core structs.
+- Dependency direction is strictly inward: platform depends on core; core has no SDL/OpenGL includes.
+
+## Dependency Direction
+
+```mermaid
+flowchart LR
+  Sandbox[Sandbox Composition Root] -->|creates| SdlAppHost[SdlAppHost Adapter]
+  Sandbox -->|creates| SpriteRenderer[SpriteRenderer Adapter]
+  Sandbox -->|creates| DemoScene[DemoScene]
+
+  SdlAppHost -->|implements| IAppHost[IAppHost Port]
+  SpriteRenderer -->|implements| IRenderer[IRenderer Port]
+  DemoScene -->|implements| IScene[IScene Port]
+
+  Application[Application Use Case] --> IAppHost
+  Application --> IRenderer
+  Application --> IScene
+
+  SdlAppHost -.depends on.-> SDL[SDL3]
+  SpriteRenderer -.depends on.-> SDL
+  SpriteRenderer -.depends on.-> OpenGL[OpenGL + GLAD2]
+
+  IAppHost --> Core[Core Layer]
+  IRenderer --> Core
+  IScene --> Core
+  Application --> Core
+```
+
+
+## Class UML
 
 ```mermaid
 classDiagram
-    class Application {
-        - m_window: SDL_Window*
-        - m_renderer: unique_ptr~IRenderer~
-        - m_running: bool
-        - m_sdlInitialized: bool
-        + Application(renderer: unique_ptr~IRenderer~)
-        + ~Application()
-        + init() void
-        + run() void
-        - cleanUp() void
-    }
+  class Application {
+    - m_renderer: unique_ptr~IRenderer~
+    - m_appHost: unique_ptr~IAppHost~
+    - m_scene: unique_ptr~IScene~
+    - m_sceneInitialized: bool
+    - m_running: bool
+    + Application(renderer, appHost, scene)
+    + init() void
+    + run() void
+    - cleanUp() void
+  }
 
-    class IRenderer {
-        <<interface>>
-        + ~IRenderer()* virtual
-        + configureContextAttributes()* void
-        + init(surface: IWindowSurface&)* bool
-        + beginFrame()* void
-        + endFrame()* void
-        + resize(width: int, height: int)* void
-        + shutdown()* void
-        + drawGeometry(geometry: GeometryData)* void
-        + drawSprite(sprite: SpriteData)* void
-        + loadTexture(path: const char*)* TextureHandle
-    }
+  class IRenderer {
+    <<interface>>
+    + ~IRenderer() virtual
+    + init(surface: RenderSurface) bool
+    + beginFrame() void
+    + endFrame() void
+    + resize(width: int, height: int) void
+    + shutdown() void
+    + drawSprite(sprite: SpriteData) void
+    + loadTexture(path: const char*) TextureHandle
+  }
 
-    class OpenGLRenderer {
-        - m_window: SDL_Window*
-        - m_context: SDL_GLContext
-        - m_program: GLuint
-        - m_vao: GLuint
-        - m_vbo: GLuint
-        - m_ebo: GLuint
-        - m_spriteProgram: GLuint
-        - m_spriteVao: GLuint
-        - m_spriteVbo: GLuint
-        - m_spriteEbo: GLuint
-        - m_ownedTextures: std::vector<GLuint>
-        - m_viewportWidth: int
-        - m_viewportHeight: int
-        - m_initialized: bool
-        + ~OpenGLRenderer() override
-        + configureContextAttributes() override void
-        + init(surface: IWindowSurface&) override bool
-        + beginFrame() override void
-        + endFrame() override void
-        + resize(width: int, height: int) override void
-        + shutdown() override void
-        + drawGeometry(geometry: GeometryData) override void
-        + drawSprite(sprite: SpriteData) override void
-        + loadTexture(path: const char*) override TextureHandle
-        - compileShader() bool
-        - initSpriteResources() bool
-    }
+  class IAppHost {
+    <<interface>>
+    + ~IAppHost() virtual
+    + initialize() bool
+    + pollEvent(outEvent: AppEvent&) bool
+    + getRenderSurface() RenderSurface
+    + shutdown() void
+  }
 
-    class GeometryData {
-        <<struct>>
-        + vertices: const void*
-        + vertexByteSize: int
-        + vertexCount: int
-        + componentsPerVertex: int
-        + indices: const void*
-        + indexCount: int
-        + primitive: PrimitiveType
-        + indexType: IndexType
-    }
+  class IScene {
+    <<interface>>
+    + ~IScene() virtual
+    + initialize(renderer: IRenderer&) bool
+    + render(renderer: IRenderer&) void
+    + shutdown(renderer: IRenderer&) void
+  }
 
-    class SpriteData {
-        <<struct>>
-        + texture: TextureHandle
-        + x: float
-        + y: float
-        + width: float
-        + height: float
-        + rotation: float
-        + tintR: float
-        + tintG: float
-        + tintB: float
-        + tintA: float
-    }
+  class RenderSurface {
+    <<struct>>
+    + nativeWindowHandle: void*
+    + width: int
+    + height: int
+  }
 
-    class PrimitiveType {
-        <<enumeration>>
-        Points
-        Lines
-        LineStrip
-        LineLoop
-        Triangles
-        TriangleStrip
-        TriangleFan
-    }
+  class AppEvent {
+    <<struct>>
+    + type: AppEventType
+    + width: int
+    + height: int
+  }
 
-    class IndexType {
-        <<enumeration>>
-        UInt16
-        UInt32
-    }
+  class AppEventType {
+    <<enumeration>>
+    None
+    Quit
+    WindowResized
+  }
 
-    class IWindowSurface {
-        <<interface>>
-        + ~IWindowSurface()* virtual
-        + getWindowHandle()* SDL_Window*
-        + getSize(width: int&, height: int&)* void
-    }
+  class SpriteData {
+    <<struct>>
+    + texture: TextureHandle
+    + x: float
+    + y: float
+    + width: float
+    + height: float
+    + rotation: float
+    + tintR: float
+    + tintG: float
+    + tintB: float
+    + tintA: float
+  }
 
-    class SdlWindowSurface {
-        - m_window: SDL_Window*
-        + SdlWindowSurface(window: SDL_Window*)
-        + getWindowHandle() override SDL_Window*
-        + getSize(width: int&, height: int&) override void
-    }
+  class SpriteRenderer {
+    + init(surface: RenderSurface) bool
+    + beginFrame() void
+    + endFrame() void
+    + resize(width: int, height: int) void
+    + shutdown() void
+    + drawSprite(sprite: SpriteData) void
+    + loadTexture(path: const char*) TextureHandle
+  }
 
-    Application --> IRenderer : uses
-    OpenGLRenderer --|> IRenderer : implements
-    IWindowSurface <|-- SdlWindowSurface : implements
-    OpenGLRenderer --> IWindowSurface : uses
-    OpenGLRenderer --> GeometryData : uses
-    OpenGLRenderer --> SpriteData : uses
-    OpenGLRenderer --> PrimitiveType : uses
-    OpenGLRenderer --> IndexType : uses
+  class SdlAppHost {
+    + initialize() bool
+    + pollEvent(outEvent: AppEvent&) bool
+    + getRenderSurface() RenderSurface
+    + shutdown() void
+  }
+
+  class DemoScene {
+    + initialize(renderer: IRenderer&) bool
+    + render(renderer: IRenderer&) void
+    + shutdown(renderer: IRenderer&) void
+  }
+
+  Application --> IRenderer : uses
+  Application --> IAppHost : uses
+  Application --> IScene : uses
+  IAppHost --> RenderSurface : returns
+  IAppHost --> AppEvent : outputs
+  IRenderer --> RenderSurface : consumes
+  IRenderer --> SpriteData : draws
+
+  SpriteRenderer --|> IRenderer : implements
+  SdlAppHost --|> IAppHost : implements
+  DemoScene --|> IScene : implements
+
+  DemoScene --> IRenderer : uses
 ```
 
 ## Notes
 
-- Build artifacts are intentionally ignored through .gitignore.
-- CMake-generated files are local-environment outputs and should not be committed.
-
-## License
-
-No license has been set yet.
+- Build outputs and CMake-generated files should not be committed.

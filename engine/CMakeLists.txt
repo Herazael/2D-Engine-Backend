@@ -5,8 +5,9 @@ find_package(OpenGL REQUIRED)
 
 target_sources(engine PRIVATE
     src/core/Application/Application.cpp
-    src/core/Renderer/OpenGLRenderer.cpp
-    src/platform/SdlWindowSurface.cpp
+    src/platform/SdlAppHost.cpp
+    src/platform/SpriteRenderer.cpp
+    src/platform/StbImageImpl.cpp
     third_party/glad2/src/gl.c
 )
 
@@ -18,4 +19,4 @@ target_include_directories(engine
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_link_libraries(engine PUBLIC SDL3::SDL3 OpenGL::GL)
+target_link_libraries(engine PRIVATE SDL3::SDL3 OpenGL::GL)

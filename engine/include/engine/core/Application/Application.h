@@ -2,25 +2,30 @@
 
 #include <memory>
 
-struct SDL_Window;
-
 namespace engine
 {
+    class IAppHost;
     class IRenderer;
+    class IScene;
 
     class Application
     {
-        public:
-            explicit Application(std::unique_ptr<IRenderer> renderer);
-            ~Application();
-            void init();
-            void run();
+    public:
+        Application(
+            std::unique_ptr<IRenderer> renderer,
+            std::unique_ptr<IAppHost> appHost,
+            std::unique_ptr<IScene> scene
+        );
+        ~Application();
+        void init();
+        void run();
 
-        private:   
-            SDL_Window* m_window = nullptr;
-            std::unique_ptr<IRenderer> m_renderer;
-            bool m_running = false;
-            bool m_sdlInitialized = false;
-            void cleanUp();
+    private:
+        std::unique_ptr<IRenderer> m_renderer;
+        std::unique_ptr<IAppHost> m_appHost;
+        std::unique_ptr<IScene> m_scene;
+        bool m_sceneInitialized = false;
+        bool m_running = false;
+        void cleanUp();
     };
 }

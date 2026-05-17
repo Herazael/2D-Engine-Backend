@@ -1,27 +1,27 @@
 #pragma once
 
-#include <glad/gl.h>
 #include <engine/core/Renderer/IRenderer.h>
+
+#include <glad/gl.h>
 #include <SDL3/SDL_video.h>
+
 #include <vector>
 
 struct SDL_Window;
 
 namespace engine
 {
-    class OpenGLRenderer final : public IRenderer
+    class SpriteRenderer final : public IRenderer
     {
     public:
-        ~OpenGLRenderer() override;
+        ~SpriteRenderer() override;
 
-        void configureContextAttributes() override;
-        bool init(IWindowSurface& surface) override;
+        bool init(const RenderSurface& surface) override;
         void beginFrame() override;
         void endFrame() override;
         void resize(int width, int height) override;
         void shutdown() override;
         void drawSprite(const SpriteData& sprite) override;
-        void drawGeometry(const GeometryData& geometry) override;
         TextureHandle loadTexture(const char* path) override;
 
     private:
@@ -40,6 +40,6 @@ namespace engine
         std::vector<GLuint> m_ownedTextures;
         int m_viewportWidth = 1;
         int m_viewportHeight = 1;
-        bool m_initialized = false;        
+        bool m_initialized = false;
     };
 }

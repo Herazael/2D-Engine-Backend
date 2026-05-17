@@ -1,18 +1,14 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include <engine/core/Renderer/OpenGLRenderer.h>
-#include <engine/core/Renderer/Types.h>
-#include <engine/platform/IWindowSurface.h>
+#include <engine/platform/SpriteRenderer.h>
 
 #include <stb_image.h>
 #include <SDL3/SDL.h>
 #include <glad/gl.h>
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace {
-constexpr int kGLMajorVersion = 3;
-constexpr int kGLMinorVersion = 3;
 constexpr float kClearColorR = 0.16f;
 constexpr float kClearColorG = 0.46f;
 constexpr float kClearColorB = 0.68f;
@@ -63,39 +59,6 @@ const std::uint32_t kSpriteQuadIndices[] = {
     0, 1, 2,
     2, 3, 0
 };
-
-inline GLenum toGLenum(engine::PrimitiveType type)
-{
-    switch (type) {
-        case engine::PrimitiveType::Points: return GL_POINTS;
-        case engine::PrimitiveType::Lines: return GL_LINES;
-        case engine::PrimitiveType::LineStrip: return GL_LINE_STRIP;
-        case engine::PrimitiveType::LineLoop: return GL_LINE_LOOP;
-        case engine::PrimitiveType::Triangles: return GL_TRIANGLES;
-        case engine::PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
-        case engine::PrimitiveType::TriangleFan: return GL_TRIANGLE_FAN;
-        default: return GL_TRIANGLES;
-    }
-}
-
-inline bool hasVertexData(const engine::GeometryData& g)
-{
-    return g.vertexByteSize > 0 && g.vertexCount > 0 && g.vertices != nullptr && g.componentsPerVertex > 0;
-}
-
-inline bool hasIndexData(const engine::GeometryData& g)
-{
-    return g.indexCount > 0 && g.indices != nullptr;
-}
-
-inline GLenum getIndexType(const engine::GeometryData& g)
-{
-    switch (g.indexType) {
-        case engine::IndexType::UInt16: return GL_UNSIGNED_SHORT;
-        case engine::IndexType::UInt32: return GL_UNSIGNED_INT;
-        default: return GL_UNSIGNED_INT;
-    }
-}
 
 inline void buildOrthoProjection(float width, float height, float out[16])
 {
@@ -223,30 +186,56 @@ static GLuint loadTextureFromFile(const char* path)
 }
 } // namespace
 
-engine::OpenGLRenderer::~OpenGLRenderer()
+engine::SpriteRenderer::~SpriteRenderer()
 {
     shutdown();
 }
 
-void engine::OpenGLRenderer::configureContextAttributes()
+bool engine::SpriteRenderer::init(const engine::RenderSurface& surface)
 {
-    const auto setAttr = [](SDL_GLAttr attr, int value, const char* name) {
-        if (!SDL_GL_SetAttribute(attr, value)) {
-            SDL_Log("SDL_GL_SetAttribute failed for %s: %s", name, SDL_GetError());
-        }
-    };
+    m_window = static_cast<SDL_Window*>(surface.nativeWindowHandle);
+    if (!m_window) {
+        SDL_Log("Renderer init failed: native window handle is null");
+        return false;
+    }
 
-    setAttr(SDL_GL_CONTEXT_MAJOR_VERSION, kGLMajorVersion, "SDL_GL_CONTEXT_MAJOR_VERSION");
-    setAttr(SDL_GL_CONTEXT_MINOR_VERSION, kGLMinorVersion, "SDL_GL_CONTEXT_MINOR_VERSION");
-    setAttr(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE, "SDL_GL_CONTEXT_PROFILE_MASK");
-    setAttr(SDL_GL_RED_SIZE, 8, "SDL_GL_RED_SIZE");
-    setAttr(SDL_GL_GREEN_SIZE, 8, "SDL_GL_GREEN_SIZE");
-    setAttr(SDL_GL_BLUE_SIZE, 8, "SDL_GL_BLUE_SIZE");
-    setAttr(SDL_GL_DEPTH_SIZE, 24, "SDL_GL_DEPTH_SIZE");
-    setAttr(SDL_GL_DOUBLEBUFFER, 1, "SDL_GL_DOUBLEBUFFER");
+    m_context = SDL_GL_CreateContext(m_window);
+    if (!m_context) {
+        SDL_Log("Failed to create OpenGL context: %s", SDL_GetError());
+        shutdown();
+        return false;
+    }
+
+    if (!SDL_GL_MakeCurrent(m_window, m_context)) {
+        SDL_Log("Failed to make context current: %s", SDL_GetError());
+        shutdown();
+        return false;
+    }
+
+    const int glVersion = gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
+    if (glVersion == 0) {
+        SDL_Log("GLAD2 init failed: could not load OpenGL functions");
+        shutdown();
+        return false;
+    }
+
+    if (!compileShader()) {
+        shutdown();
+        return false;
+    }
+
+    if (!initSpriteResources()) {
+        shutdown();
+        return false;
+    }
+
+    resize(surface.width, surface.height);
+
+    m_initialized = true;
+    return true;
 }
 
-bool engine::OpenGLRenderer::initSpriteResources()
+bool engine::SpriteRenderer::initSpriteResources()
 {
     glGenVertexArrays(1, &m_spriteVao);
     glGenBuffers(1, &m_spriteVbo);
@@ -299,148 +288,7 @@ bool engine::OpenGLRenderer::initSpriteResources()
     return true;
 }
 
-bool engine::OpenGLRenderer::init(engine::IWindowSurface& surface)
-{
-    m_window = surface.getWindowHandle();
-    if (!m_window) {
-        SDL_Log("Renderer init failed: native window handle is null");
-        return false;
-    }
-
-    m_context = SDL_GL_CreateContext(m_window);
-    if (!m_context) {
-        SDL_Log("Failed to create OpenGL context: %s", SDL_GetError());
-        shutdown();
-        return false;
-    }
-
-    if (!SDL_GL_MakeCurrent(m_window, m_context)) {
-        SDL_Log("Failed to make context current: %s", SDL_GetError());
-        shutdown();
-        return false;
-    }
-
-    const int glVersion = gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
-    if (glVersion == 0) {
-        SDL_Log("GLAD2 init failed: could not load OpenGL functions");
-        shutdown();
-        return false;
-    }
-
-    SDL_Log("GLAD2 init OK (OpenGL version code: %d)", glVersion);
-
-    const GLubyte* vendor = glGetString(GL_VENDOR);
-    const GLubyte* renderer = glGetString(GL_RENDERER);
-    const GLubyte* version = glGetString(GL_VERSION);
-    const GLubyte* glslVer = glGetString(GL_SHADING_LANGUAGE_VERSION);
-
-    SDL_Log("OpenGL Vendor: %s", vendor ? (const char*)vendor : "unknown");
-    SDL_Log("OpenGL Renderer: %s", renderer ? (const char*)renderer : "unknown");
-    SDL_Log("OpenGL Version: %s", version ? (const char*)version : "unknown");
-    SDL_Log("GLSL Version: %s", glslVer ? (const char*)glslVer : "unknown");
-
-    if (!compileShader()) {
-        shutdown();
-        return false;
-    }
-
-    if (!initSpriteResources()) {
-        shutdown();
-        return false;
-    }
-
-    int width = 0;
-    int height = 0;
-    surface.getSize(width, height);
-    resize(width, height);
-
-    m_initialized = true;
-    return true;
-}
-
-void engine::OpenGLRenderer::beginFrame()
-{
-    if (!m_initialized) {
-        return;
-    }
-
-    glClearColor(kClearColorR, kClearColorG, kClearColorB, kClearColorA);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
-void engine::OpenGLRenderer::endFrame()
-{
-    if (!m_initialized || !m_window) {
-        return;
-    }
-
-    SDL_GL_SwapWindow(m_window);
-}
-
-void engine::OpenGLRenderer::drawSprite(const SpriteData& sprite)
-{
-    if (!m_initialized || !m_spriteProgram) {
-        SDL_Log("Renderer or Program not initialized.");
-        return;
-    }
-
-    if (sprite.texture == 0) {
-        SDL_Log("Sprite draw skipped: invalid texture.");
-        return;
-    }
-
-    float model[16];
-    float projection[16];
-    buildSpriteModel(sprite, model);
-    buildOrthoProjection(
-        static_cast<float>(m_viewportWidth),
-        static_cast<float>(m_viewportHeight),
-        projection
-    );
-
-    glUseProgram(m_spriteProgram);
-    glBindVertexArray(m_spriteVao);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sprite.texture);
-
-    glUniform1i(glGetUniformLocation(m_spriteProgram, "uTexture"), 0);
-    glUniform4f(
-        glGetUniformLocation(m_spriteProgram, "uTint"),
-        sprite.tintR,
-        sprite.tintG,
-        sprite.tintB,
-        sprite.tintA
-    );
-
-    glUniformMatrix4fv(
-        glGetUniformLocation(m_spriteProgram, "uModel"),
-        1,
-        GL_FALSE,
-        model
-    );
-
-    glUniformMatrix4fv(
-        glGetUniformLocation(m_spriteProgram, "uProjection"),
-        1,
-        GL_FALSE,
-        projection
-    );
-
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-void engine::OpenGLRenderer::drawGeometry(const GeometryData& geometry)
-{
-    (void)geometry;
-    SDL_Log("drawGeometry is temporarily disabled while sprite pipeline is active.");
-}
-
-bool engine::OpenGLRenderer::compileShader()
+bool engine::SpriteRenderer::compileShader()
 {
     GLuint vertexShader = compileHelper(kVertexShaderSource, GL_VERTEX_SHADER);
     if (vertexShader == 0) {
@@ -499,7 +347,90 @@ bool engine::OpenGLRenderer::compileShader()
     return true;
 }
 
-void engine::OpenGLRenderer::resize(int width, int height)
+engine::TextureHandle engine::SpriteRenderer::loadTexture(const char* path)
+{
+    const GLuint texture = loadTextureFromFile(path);
+    if (texture != 0) {
+        m_ownedTextures.push_back(texture);
+    }
+    return texture;
+}
+
+void engine::SpriteRenderer::beginFrame()
+{
+    if (!m_initialized) {
+        return;
+    }
+
+    glClearColor(kClearColorR, kClearColorG, kClearColorB, kClearColorA);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void engine::SpriteRenderer::endFrame()
+{
+    if (!m_initialized || !m_window) {
+        return;
+    }
+
+    SDL_GL_SwapWindow(m_window);
+}
+
+void engine::SpriteRenderer::drawSprite(const SpriteData& sprite)
+{
+    if (!m_initialized || !m_spriteProgram) {
+        return;
+    }
+
+    if (sprite.texture == 0) {
+        return;
+    }
+
+    float model[16];
+    float projection[16];
+    buildSpriteModel(sprite, model);
+    buildOrthoProjection(
+        static_cast<float>(m_viewportWidth),
+        static_cast<float>(m_viewportHeight),
+        projection
+    );
+
+    glUseProgram(m_spriteProgram);
+    glBindVertexArray(m_spriteVao);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, sprite.texture);
+
+    glUniform1i(glGetUniformLocation(m_spriteProgram, "uTexture"), 0);
+    glUniform4f(
+        glGetUniformLocation(m_spriteProgram, "uTint"),
+        sprite.tintR,
+        sprite.tintG,
+        sprite.tintB,
+        sprite.tintA
+    );
+
+    glUniformMatrix4fv(
+        glGetUniformLocation(m_spriteProgram, "uModel"),
+        1,
+        GL_FALSE,
+        model
+    );
+
+    glUniformMatrix4fv(
+        glGetUniformLocation(m_spriteProgram, "uProjection"),
+        1,
+        GL_FALSE,
+        projection
+    );
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void engine::SpriteRenderer::resize(int width, int height)
 {
     if (width < 1) {
         width = 1;
@@ -513,7 +444,7 @@ void engine::OpenGLRenderer::resize(int width, int height)
     glViewport(0, 0, width, height);
 }
 
-void engine::OpenGLRenderer::shutdown()
+void engine::SpriteRenderer::shutdown()
 {
     for (const GLuint texture : m_ownedTextures) {
         if (texture != 0) {
@@ -560,13 +491,4 @@ void engine::OpenGLRenderer::shutdown()
     m_spriteEbo = 0;
     m_window = nullptr;
     m_initialized = false;
-}
-
-engine::TextureHandle engine::OpenGLRenderer::loadTexture(const char* path)
-{
-    const GLuint texture = loadTextureFromFile(path);
-    if (texture != 0) {
-        m_ownedTextures.push_back(texture);
-    }
-    return texture;
 }

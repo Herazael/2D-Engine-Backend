@@ -1,2 +1,6 @@
 add_executable(sandbox src/main.cpp)
-target_link_libraries(sandbox PRIVATE engine)
+
+find_package(SDL3 CONFIG REQUIRED)
+find_package(OpenGL REQUIRED)
+
+target_link_libraries(sandbox PRIVATE engine SDL3::SDL3 OpenGL::GL)

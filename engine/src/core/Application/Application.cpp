@@ -1,131 +1,111 @@
 #include <engine/core/Application/Application.h>
+#include <engine/core/Application/AppEvent.h>
+#include <engine/core/Application/IAppHost.h>
+#include <engine/core/Application/IScene.h>
 #include <engine/core/Renderer/IRenderer.h>
-#include <engine/core/Renderer/Types.h>
-#include <engine/platform/SdlWindowSurface.h>
-#include <SDL3/SDL.h>
 
-//Local application defaults for window creation and test scene setup
-namespace {
-    constexpr const char* kWindowTitle = "NeoLab2D";
-    constexpr int kWindowWidth = 1280;
-    constexpr int kWindowHeight = 720;
-    constexpr int kWindowMinWidth = 800;
-    constexpr int kWindowMinHeight = 600;
-
-    engine::SpriteData testSprite;
+namespace
+{
+    void clampSize(int& width, int& height)
+    {
+        if (width < 1) {
+            width = 1;
+        }
+        if (height < 1) {
+            height = 1;
+        }
+    }
 }
 
 engine::Application::~Application(){
     cleanUp();
 }
 
-engine::Application::Application(std::unique_ptr<engine::IRenderer> renderer)
-    : m_renderer(std::move(renderer)){}
+engine::Application::Application(
+    std::unique_ptr<engine::IRenderer> renderer,
+    std::unique_ptr<engine::IAppHost> appHost,
+    std::unique_ptr<engine::IScene> scene
+)
+    : m_renderer(std::move(renderer)),
+      m_appHost(std::move(appHost)),
+      m_scene(std::move(scene)) {}
 
-//clean up on application shutdown
-void engine::Application::cleanUp(){
+void engine::Application::cleanUp()
+{
+    if (m_sceneInitialized && m_scene && m_renderer) {
+        m_scene->shutdown(*m_renderer);
+        m_sceneInitialized = false;
+    }
+
     if (m_renderer) {
         m_renderer->shutdown();
     }
-    if(m_window) {
-        SDL_DestroyWindow(m_window);
-        m_window = nullptr;
+
+    if (m_appHost) {
+        m_appHost->shutdown();
     }
-    if (m_sdlInitialized) {
-        SDL_Quit();
-        m_sdlInitialized = false;
-    }
+
     m_running = false;
 }
 
-// sets Window properties for the application
-static SDL_PropertiesID createWindowProps(){
-    SDL_PropertiesID props = SDL_CreateProperties();
-
-    SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, kWindowTitle);
-    SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
-    SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN, true);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, kWindowWidth);
-    SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, kWindowHeight);
-    
-    return props;
-}
-
-//Main application loop
 void engine::Application::run() {
     while (m_running) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            //listen to quit event
-            if (event.type == SDL_EVENT_QUIT) {
+        AppEvent event;
+        while (m_appHost->pollEvent(event)) {
+            if (event.type == AppEventType::Quit) {
                 m_running = false;
             }
-            //listen to resize event
-            if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-                m_renderer->resize(event.window.data1, event.window.data2);
+
+            if (event.type == AppEventType::WindowResized) {
+                int width = event.width;
+                int height = event.height;
+                clampSize(width, height);
+                m_renderer->resize(width, height);
             }
         }
+
         m_renderer->beginFrame();
-        m_renderer->drawSprite(testSprite);
+        if (m_scene) {
+            m_scene->render(*m_renderer);
+        }
         m_renderer->endFrame();
-    } 
-    return;
+    }
 }
 
-void engine::Application::init() {
-    //check for renderer
-    if (!m_renderer) {
-        SDL_Log("Application init failed: renderer dependency is null");
+void engine::Application::init()
+{
+    if (!m_renderer || !m_appHost || !m_scene) {
         m_running = false;
         return;
     }
 
-    //init SDL
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        SDL_Log("SDL_Init failed: %s", SDL_GetError());
+    if (!m_appHost->initialize()) {
         m_running = false;
         return;
     }
-    m_sdlInitialized = true;
 
-    //configure GL context
-    m_renderer->configureContextAttributes();
-
-    //window creation process. create attributes, validate and create window
-    SDL_PropertiesID windowProps = createWindowProps();
-    if(!windowProps){
-        SDL_Log("Failed to create window properties: %s", SDL_GetError());
-        cleanUp();
-        return;
-    }
-    m_window = SDL_CreateWindowWithProperties(windowProps);
-    SDL_DestroyProperties(windowProps);
-
-    //validate window creation
-    if(!m_window){
-        SDL_Log("Failed to create window: %s", SDL_GetError());
-        cleanUp();
-        return;
-    }
-    SDL_SetWindowMinimumSize(m_window, kWindowMinWidth, kWindowMinHeight);
-
-    //start renderer init
-    engine::SdlWindowSurface surface(m_window);
-    if (!m_renderer->init(surface)) {
+    const RenderSurface renderSurface = m_appHost->getRenderSurface();
+    if (renderSurface.nativeWindowHandle == nullptr) {
         cleanUp();
         return;
     }
 
-    testSprite.texture = m_renderer->loadTexture("C:/Uni/Engine/craftpix-net-938458-free-bloody-alchemist-chibi-character-sprites/Bloody_Alchemist_1/PNG/PNG Sequences/Dying/0_Bloody_Alchemist_Dying_000.png");
-    if (testSprite.texture == 0) {
-        SDL_Log("Failed to load sprite texture from assets/sprite.png");
+    if (!m_renderer->init(renderSurface)) {
         cleanUp();
         return;
     }
-    testSprite.x = 100.0f;
-    testSprite.y = 100.0f;
-    testSprite.width = 128.0f;
-    testSprite.height = 128.0f;
+
+    if (!m_scene->initialize(*m_renderer)) {
+        cleanUp();
+        return;
+    }
+
+    m_sceneInitialized = true;
+
+    int width = renderSurface.width;
+    int height = renderSurface.height;
+    clampSize(width, height);
+    m_renderer->resize(width, height);
 
     m_running = true;
 }
