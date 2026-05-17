@@ -31,4 +31,23 @@ namespace engine {
         PrimitiveType primitive = PrimitiveType::Triangles;
         IndexType indexType = IndexType::UInt32;
     };
+
+    using TextureHandle = std::uint32_t;
+    struct SpriteData {
+        TextureHandle texture = 0;
+        float x = 0.0f;
+        float y = 0.0f;
+        float width = 1.0f;
+        float height = 1.0f;
+        float rotation = 0.0f;
+        float tintR = 1.0f;
+        float tintG = 1.0f;
+        float tintB = 1.0f;
+        float tintA = 1.0f;
+    };
+
+    struct SpriteVertex{
+        float x, y, z;
+        float u, v;
+    };
 } 

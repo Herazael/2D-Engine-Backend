@@ -11,6 +11,8 @@ namespace {
     constexpr int kWindowHeight = 720;
     constexpr int kWindowMinWidth = 800;
     constexpr int kWindowMinHeight = 600;
+
+    engine::SpriteData testSprite;
 }
 
 engine::Application::~Application(){
@@ -64,7 +66,7 @@ void engine::Application::run() {
             }
         }
         m_renderer->beginFrame();
-        //m_renderer->drawGeometry(testGeom);
+        m_renderer->drawSprite(testSprite);
         m_renderer->endFrame();
     } 
     return;
@@ -113,5 +115,17 @@ void engine::Application::init() {
         cleanUp();
         return;
     }
+
+    testSprite.texture = m_renderer->loadTexture("C:/Uni/Engine/craftpix-net-938458-free-bloody-alchemist-chibi-character-sprites/Bloody_Alchemist_1/PNG/PNG Sequences/Dying/0_Bloody_Alchemist_Dying_000.png");
+    if (testSprite.texture == 0) {
+        SDL_Log("Failed to load sprite texture from assets/sprite.png");
+        cleanUp();
+        return;
+    }
+    testSprite.x = 100.0f;
+    testSprite.y = 100.0f;
+    testSprite.width = 128.0f;
+    testSprite.height = 128.0f;
+
     m_running = true;
 }

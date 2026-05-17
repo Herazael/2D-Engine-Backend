@@ -9,7 +9,8 @@ Implemented so far:
 - Application lifecycle management with run loop and event polling
 - OpenGL renderer with context management and GLAD2 loading
 - Flexible geometry rendering system (VAO, VBO, EBO)
-- Shader compile/link pipeline for dynamic geometry
+- Sprite rendering pipeline with texture support
+- Shader compile/link pipeline for dynamic geometry and sprites
 - Interface-based renderer abstraction (IRenderer, IWindowSurface)
 - Sandbox executable linked against engine static library
 - CMake + vcpkg-based dependency setup
@@ -131,6 +132,8 @@ classDiagram
         + resize(width: int, height: int)* void
         + shutdown()* void
         + drawGeometry(geometry: GeometryData)* void
+        + drawSprite(sprite: SpriteData)* void
+        + loadTexture(path: const char*)* TextureHandle
     }
 
     class OpenGLRenderer {
@@ -140,6 +143,13 @@ classDiagram
         - m_vao: GLuint
         - m_vbo: GLuint
         - m_ebo: GLuint
+        - m_spriteProgram: GLuint
+        - m_spriteVao: GLuint
+        - m_spriteVbo: GLuint
+        - m_spriteEbo: GLuint
+        - m_ownedTextures: std::vector<GLuint>
+        - m_viewportWidth: int
+        - m_viewportHeight: int
         - m_initialized: bool
         + ~OpenGLRenderer() override
         + configureContextAttributes() override void
@@ -149,7 +159,10 @@ classDiagram
         + resize(width: int, height: int) override void
         + shutdown() override void
         + drawGeometry(geometry: GeometryData) override void
+        + drawSprite(sprite: SpriteData) override void
+        + loadTexture(path: const char*) override TextureHandle
         - compileShader() bool
+        - initSpriteResources() bool
     }
 
     class GeometryData {
@@ -162,6 +175,20 @@ classDiagram
         + indexCount: int
         + primitive: PrimitiveType
         + indexType: IndexType
+    }
+
+    class SpriteData {
+        <<struct>>
+        + texture: TextureHandle
+        + x: float
+        + y: float
+        + width: float
+        + height: float
+        + rotation: float
+        + tintR: float
+        + tintG: float
+        + tintB: float
+        + tintA: float
     }
 
     class PrimitiveType {
@@ -200,6 +227,7 @@ classDiagram
     IWindowSurface <|-- SdlWindowSurface : implements
     OpenGLRenderer --> IWindowSurface : uses
     OpenGLRenderer --> GeometryData : uses
+    OpenGLRenderer --> SpriteData : uses
     OpenGLRenderer --> PrimitiveType : uses
     OpenGLRenderer --> IndexType : uses
 ```

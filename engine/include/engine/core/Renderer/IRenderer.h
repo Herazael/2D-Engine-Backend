@@ -17,6 +17,8 @@ namespace engine
         virtual void endFrame() = 0;
         virtual void resize(int width, int height) = 0;
         virtual void shutdown() = 0;
+        virtual void drawSprite(const SpriteData& sprite) = 0;
         virtual void drawGeometry(const GeometryData& geometry) = 0;
+        virtual TextureHandle loadTexture(const char* path) = 0;
     };
 }
