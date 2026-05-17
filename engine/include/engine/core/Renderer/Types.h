@@ -1,9 +1,11 @@
 #pragma once
 
-#include <glad/gl.h>
+#include <cstdint>
 
 namespace engine {
-    enum class PrimitiveType {
+    // used for dynamic rendering of various geometries
+    // extends uint8_t to minimize memory usage
+    enum class PrimitiveType : std::uint8_t{
         Points,
         Lines,
         LineStrip,
@@ -12,25 +14,21 @@ namespace engine {
         TriangleStrip,
         TriangleFan
     };
-
-    struct GeometryData {
-        const float* vertices;
-        int vertexByteSize;
-        int vertexCount;
-        PrimitiveType primitive;
+    
+    enum class IndexType : std::uint8_t {
+        UInt16,
+        UInt32
     };
 
-    inline GLenum toGLenum(PrimitiveType type) {
-        switch (type) {
-            case PrimitiveType::Points: return GL_POINTS;
-            case PrimitiveType::Lines: return GL_LINES;
-            case PrimitiveType::LineStrip: return GL_LINE_STRIP;
-            case PrimitiveType::LineLoop: return GL_LINE_LOOP;
-            case PrimitiveType::Triangles: return GL_TRIANGLES;
-            case PrimitiveType::TriangleStrip: return GL_TRIANGLE_STRIP;
-            case PrimitiveType::TriangleFan: return GL_TRIANGLE_FAN;
-            default: return GL_TRIANGLES;
-        }
-    }
+    struct GeometryData {
+        const void* vertices = nullptr;
+        int vertexByteSize = 0;
+        int vertexCount = 0;
+        int componentsPerVertex = 3;
 
+        const void* indices = nullptr;
+        int indexCount = 0;
+        PrimitiveType primitive = PrimitiveType::Triangles;
+        IndexType indexType = IndexType::UInt32;
+    };
 } 

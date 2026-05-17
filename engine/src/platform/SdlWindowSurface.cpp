@@ -2,9 +2,7 @@
 #include <SDL3/SDL_video.h>
 
 engine::SdlWindowSurface::SdlWindowSurface(SDL_Window* window)
-    : m_window(window)
-{
-}
+    : m_window(window){}
 
 SDL_Window* engine::SdlWindowSurface::getWindowHandle() const
 {

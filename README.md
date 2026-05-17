@@ -8,9 +8,8 @@ Implemented so far:
 - SDL3-based application initialization and window creation
 - Application lifecycle management with run loop and event polling
 - OpenGL renderer with context management and GLAD2 loading
-- Flexible primitive rendering system (Points, Lines, Triangles, etc.)
-- Vertex Array Object (VAO) and Vertex Buffer Object (VBO) management
-- Shader compile/link pipeline for test geometry
+- Flexible geometry rendering system (VAO, VBO, EBO)
+- Shader compile/link pipeline for dynamic geometry
 - Interface-based renderer abstraction (IRenderer, IWindowSurface)
 - Sandbox executable linked against engine static library
 - CMake + vcpkg-based dependency setup
@@ -131,7 +130,7 @@ classDiagram
         + endFrame()* void
         + resize(width: int, height: int)* void
         + shutdown()* void
-        + drawTestGeometry(vertices: float*, arraySize: int, vertexCount: int, primitiveType: PrimitiveType)* void
+        + drawGeometry(geometry: GeometryData)* void
     }
 
     class OpenGLRenderer {
@@ -140,6 +139,7 @@ classDiagram
         - m_program: GLuint
         - m_vao: GLuint
         - m_vbo: GLuint
+        - m_ebo: GLuint
         - m_initialized: bool
         + ~OpenGLRenderer() override
         + configureContextAttributes() override void
@@ -148,8 +148,20 @@ classDiagram
         + endFrame() override void
         + resize(width: int, height: int) override void
         + shutdown() override void
-        + drawTestGeometry(vertices: float*, arraySize: int, vertexCount: int, primitiveType: PrimitiveType) override void
+        + drawGeometry(geometry: GeometryData) override void
         - compileShader() bool
+    }
+
+    class GeometryData {
+        <<struct>>
+        + vertices: const void*
+        + vertexByteSize: int
+        + vertexCount: int
+        + componentsPerVertex: int
+        + indices: const void*
+        + indexCount: int
+        + primitive: PrimitiveType
+        + indexType: IndexType
     }
 
     class PrimitiveType {
@@ -161,6 +173,12 @@ classDiagram
         Triangles
         TriangleStrip
         TriangleFan
+    }
+
+    class IndexType {
+        <<enumeration>>
+        UInt16
+        UInt32
     }
 
     class IWindowSurface {
@@ -181,7 +199,9 @@ classDiagram
     OpenGLRenderer --|> IRenderer : implements
     IWindowSurface <|-- SdlWindowSurface : implements
     OpenGLRenderer --> IWindowSurface : uses
+    OpenGLRenderer --> GeometryData : uses
     OpenGLRenderer --> PrimitiveType : uses
+    OpenGLRenderer --> IndexType : uses
 ```
 
 ## Notes

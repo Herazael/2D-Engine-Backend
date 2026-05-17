@@ -20,7 +20,7 @@ namespace engine
         void endFrame() override;
         void resize(int width, int height) override;
         void shutdown() override;
-        void drawGeometry(GeometryData& geometry) override;
+        void drawGeometry(const GeometryData& geometry) override;
 
     private:
         bool compileShader();
@@ -29,6 +29,7 @@ namespace engine
         GLuint m_program = 0;
         GLuint m_vao = 0;
         GLuint m_vbo = 0;
+        GLuint m_ebo = 0;
         bool m_initialized = false;
         
     };

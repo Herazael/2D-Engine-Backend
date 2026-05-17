@@ -17,6 +17,6 @@ namespace engine
         virtual void endFrame() = 0;
         virtual void resize(int width, int height) = 0;
         virtual void shutdown() = 0;
-        virtual void drawGeometry(GeometryData& geometry) = 0;
+        virtual void drawGeometry(const GeometryData& geometry) = 0;
     };
 }
