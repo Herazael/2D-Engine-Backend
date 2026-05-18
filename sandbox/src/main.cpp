@@ -14,7 +14,7 @@ namespace
     public:
         bool initialize(engine::IRenderer& renderer) override
         {
-            m_sprite.texture = renderer.loadTexture("assets/sprite.png");
+            m_sprite.texture = renderer.loadTexture("C:/Uni/Engine/craftpix-net-938458-free-bloody-alchemist-chibi-character-sprites/Bloody_Alchemist_1/PNG/PNG Sequences/Dying/0_Bloody_Alchemist_Dying_000.png");
             m_sprite.x = 100.0f;
             m_sprite.y = 100.0f;
             m_sprite.width = 128.0f;

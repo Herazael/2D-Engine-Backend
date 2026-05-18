@@ -29,10 +29,6 @@ namespace engine
         bool initSpriteResources();
         SDL_Window* m_window = nullptr;
         SDL_GLContext m_context = nullptr;
-        GLuint m_program = 0;
-        GLuint m_vao = 0;
-        GLuint m_vbo = 0;
-        GLuint m_ebo = 0;
         GLuint m_spriteProgram = 0;
         GLuint m_spriteVao = 0;
         GLuint m_spriteVbo = 0;

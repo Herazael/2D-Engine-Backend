@@ -149,7 +149,7 @@ static GLuint loadTextureFromFile(const char* path)
     int height = 0;
     int channels = 0;
 
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(false);
     unsigned char* pixels = stbi_load(path, &width, &height, &channels, 4);
     if (!pixels) {
         SDL_Log("Failed to load image: %s", path);
@@ -228,6 +228,9 @@ bool engine::SpriteRenderer::init(const engine::RenderSurface& surface)
         shutdown();
         return false;
     }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     resize(surface.width, surface.height);
 
@@ -337,7 +340,6 @@ bool engine::SpriteRenderer::compileShader()
         return false;
     }
 
-    m_program = program;
     m_spriteProgram = program;
 
     glDetachShader(program, vertexShader);
@@ -462,15 +464,6 @@ void engine::SpriteRenderer::shutdown()
         m_context = nullptr;
     }
 
-    if (m_vao) {
-        glDeleteVertexArrays(1, &m_vao);
-    }
-    if (m_vbo) {
-        glDeleteBuffers(1, &m_vbo);
-    }
-    if (m_ebo) {
-        glDeleteBuffers(1, &m_ebo);
-    }
     if (m_spriteVao) {
         glDeleteVertexArrays(1, &m_spriteVao);
     }
@@ -481,11 +474,7 @@ void engine::SpriteRenderer::shutdown()
         glDeleteBuffers(1, &m_spriteEbo);
     }
 
-    m_program = 0;
     m_spriteProgram = 0;
-    m_vao = 0;
-    m_vbo = 0;
-    m_ebo = 0;
     m_spriteVao = 0;
     m_spriteVbo = 0;
     m_spriteEbo = 0;
