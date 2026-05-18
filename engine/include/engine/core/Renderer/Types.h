@@ -50,4 +50,11 @@ namespace engine {
         float x, y, z;
         float u, v;
     };
+
+    struct SpriteBatchEntry {
+        const SpriteData* sprite;     
+        int vertexOffset;               
+        int indexOffset;            
+        int indexCount;                
+    };
 } 

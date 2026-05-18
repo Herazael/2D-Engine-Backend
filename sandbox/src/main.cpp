@@ -6,6 +6,7 @@
 #include <engine/platform/SpriteRenderer.h>
 
 #include <memory>
+#include <random>
 
 namespace
 {
@@ -19,12 +20,22 @@ namespace
             m_sprite.y = 100.0f;
             m_sprite.width = 128.0f;
             m_sprite.height = 128.0f;
-            return true;
+            return m_sprite.texture != 0;
         }
 
         void render(engine::IRenderer& renderer) override
-        {
-            renderer.drawSprite(m_sprite);
+        {   
+            for (int i = 0; i < 10; ++i) {
+                engine::SpriteData sprite = m_sprite;
+                sprite.x = 40.0f + static_cast<float>(i) * 72.0f;
+                sprite.y = 120.0f;
+                renderer.drawSprite(sprite);
+            }
+        }
+
+        void finalDraw(engine::IRenderer& renderer) override
+        {   
+            renderer.buildAndFlushBatch();
         }
 
         void shutdown(engine::IRenderer& renderer) override

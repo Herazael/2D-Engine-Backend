@@ -4,6 +4,9 @@
 #include <engine/core/Application/IScene.h>
 #include <engine/core/Renderer/IRenderer.h>
 
+#include <thread>
+#include <chrono>
+
 namespace
 {
     void clampSize(int& width, int& height)
@@ -67,6 +70,7 @@ void engine::Application::run() {
         m_renderer->beginFrame();
         if (m_scene) {
             m_scene->render(*m_renderer);
+            m_scene->finalDraw(*m_renderer);
         }
         m_renderer->endFrame();
     }
