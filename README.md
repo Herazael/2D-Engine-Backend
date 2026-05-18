@@ -1,73 +1,72 @@
 # NeoLab2D Engine Backend
 
-2D engine backend in modern C++ with explicit Clean Architecture boundaries:
+2D engine backend written in modern C++ with explicit architecture boundaries:
 
-- Core layer defines application and rendering ports.
-- Platform layer implements SDL3/OpenGL adapters.
-- Sandbox is the composition root that wires adapters into core use cases.
+- Core layer defines app/scene/renderer contracts.
+- Platform layer provides SDL3 + OpenGL implementations.
+- Sandbox is the composition root used for running and testing the stack.
 
-## Status
+## Current State
 
-- Core app loop is framework-agnostic (no SDL types in core APIs).
-- Rendering contract is backend-agnostic via RenderSurface.
-- SDL lifecycle/event/window concerns are isolated in SdlAppHost.
-- OpenGL sprite rendering is isolated in platform SpriteRenderer.
+- Window creation and app loop are running through `SdlAppHost`.
+- OpenGL 3.3 context setup and rendering path are implemented in `SpriteRenderer`.
+- Sprite data path (`loadTexture`, `drawSprite`, `buildAndFlushBatch`) is wired end-to-end.
+- Sandbox boots `Application` with concrete platform adapters.
 
-## Tech
+## Tech Stack
 
 - C++26
-- CMake + Ninja
+- CMake 3.20+
+- Ninja generator
 - vcpkg (manifest mode)
 - SDL3
-- OpenGL 3.3 core + GLAD2
+- OpenGL 3.3 core profile
+- GLAD2
+- stb
 
-## Prerequisites
+## Prerequisites (Windows)
 
 - Windows 10/11 (x64)
-- CMake 3.20+
-- Ninja 1.10+
-- LLVM/Clang 17+ or MSVC 19.3x+
 - Visual Studio 2022 Build Tools with Desktop C++ workload and Windows SDK
-- vcpkg (manifest mode enabled)
+- CMake (3.20+)
+- Ninja
+- clang++ available on `PATH` (current preset sets `CMAKE_CXX_COMPILER=clang++`)
+- vcpkg installed at `C:/vcpkg`
 
-Recommended install links:
+Notes:
 
-- CMake: https://cmake.org/download/
-- Ninja: https://github.com/ninja-build/ninja/releases
-- LLVM: https://releases.llvm.org/
-- Visual Studio Build Tools: https://visualstudio.microsoft.com/downloads/
-- vcpkg: https://github.com/microsoft/vcpkg
+- On Windows, LLVM/CMake/Ninja still rely on MSVC toolchain + Windows SDK libraries.
+- If linker errors mention system libs (for example `kernel32.lib`), run builds from a VS Developer shell.
 
-## Layout
+## Project Layout
 
-- engine/include/engine/core
-  - Application
-    - Application.h
-    - AppEvent.h
-    - IAppHost.h
-    - IScene.h
-  - Renderer
-    - IRenderer.h
-    - RenderSurface.h
-    - Types.h
-- engine/include/engine/platform
-  - SdlAppHost.h
-  - SpriteRenderer.h
-- engine/src/core/Application
-  - Application.cpp
-- engine/src/platform
-  - SdlAppHost.cpp
-  - SpriteRenderer.cpp
-  - StbImageImpl.cpp
-- sandbox/src
-  - main.cpp
+```text
+engine/
+  include/engine/core/
+    Application/
+    Renderer/
+  include/engine/platform/
+  src/core/Application/
+  src/platform/
+  third_party/glad2/
+sandbox/
+  src/main.cpp
+```
 
 ## Build
+
+From the repository root:
 
 ```powershell
 cmake --preset default
 cmake --build --preset default
 ```
+
+The `default` preset uses:
+
+- Ninja
+- `build/` as the binary directory
+- vcpkg toolchain at `C:/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
 ## Run
 
@@ -75,38 +74,26 @@ cmake --build --preset default
 .\build\sandbox\sandbox.exe
 ```
 
-## Milestone Checklist
+## Known Caveats
 
-- [x] Window + fixed timestep loop
-- [x] OpenGL renderer setup
-- [x] Primitive rendering foundation (VAO/VBO, flexible geometry types)
-- [ ] Sprite rendering and batching
-- [ ] Input action mapping
-- [ ] ECS integration (EnTT)
-- [ ] Asset manager (load/cache/lifetime)
-- [ ] Physics integration (Box2D)
-- [ ] Animation system
-- [ ] Camera system
-- [ ] Audio system (miniaudio)
-- [ ] Scene management
-- [ ] Tilemap support
-- [ ] Lua scripting (sol3)
-- [ ] Editor UI (Dear ImGui)
-- [ ] Save/load pipeline
-- [ ] Debug and profiling tools
+- `sandbox/src/main.cpp` currently loads a sprite texture using an absolute local path.
+- If that file does not exist on your machine, startup still runs but texture loading fails and no sprite is shown.
+- Asset path/config plumbing is still pending.
 
-## Layer Rules
+## Architecture Rules
 
-- Core can depend only on core abstractions and data types.
-- Platform can depend on SDL/OpenGL and implement core interfaces.
-- Sandbox composes concrete platform adapters with core use cases.
+- Core depends only on core abstractions/data.
+- Platform depends on core and external frameworks (SDL/OpenGL).
+- Sandbox performs composition (wiring concrete implementations to core contracts).
 
-## Architecture Decisions
+## Milestones
 
-- Core ports are stable contracts: IRenderer, IAppHost, and IScene are defined in core so policies depend on interfaces, not frameworks.
-- Framework lifecycle is isolated: SDL initialization, window creation, and event polling live only in SdlAppHost.
-- Rendering backend is an adapter: SpriteRenderer is a platform implementation of IRenderer, not a core policy type.
-- Composition happens at the edge: sandbox/main.cpp wires concrete adapters into Application.
-- Data crossing boundaries is backend-agnostic: RenderSurface and AppEvent are plain core structs.
-
-- Dependency direction is strictly inward: platform depends on core; core has no SDL/OpenGL includes.
+- [x] Window + event loop
+- [x] OpenGL renderer bootstrap
+- [x] Primitive geometry path
+- [x] Sprite draw + batching API path
+- [ ] Input mapping
+- [ ] ECS integration
+- [ ] Asset pipeline
+- [ ] Camera/animation/audio systems
+- [ ] Editor/tooling
